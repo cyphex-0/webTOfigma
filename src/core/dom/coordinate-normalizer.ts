@@ -39,11 +39,18 @@ export function toViewportSpace(
   };
 }
 
+export interface PartialRect {
+  x?: number | undefined;
+  y?: number | undefined;
+  width?: number | undefined;
+  height?: number | undefined;
+}
+
 /**
  * Ensures all dimensions and coordinates are finite non-NaN numbers
  * and dimensions are non-negative.
  */
-export function sanitizeRect(rect: Partial<SourceRect>): SourceRect {
+export function sanitizeRect(rect: PartialRect): SourceRect {
   const sanitizeNum = (val: number | undefined, fallback = 0): number => {
     if (typeof val !== 'number' || !Number.isFinite(val) || Number.isNaN(val)) {
       return fallback;
