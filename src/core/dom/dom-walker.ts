@@ -27,6 +27,7 @@ import {
   StackingContextNode,
   type PaintNode
 } from './stacking-context';
+import { discoverElementAssets } from '../assets/asset-discovery';
 
 export interface DOMWalkerOptions {
   rootElement?: Element | undefined;
@@ -369,6 +370,10 @@ export class DOMWalker {
       }
     }
 
+    // 13. Asset Discovery
+    const discoveredAssets = discoverElementAssets(el, style);
+    const assetRefs = discoveredAssets.map((a) => a.normalizedUrl);
+
     // Assemble final SourceNode
     const sourceNode: SourceNode = {
       nodeId,
@@ -385,7 +390,7 @@ export class DOMWalker {
       stacking: stackingHints,
       computedStyle: snapshotComputedStyle(style),
       layoutHints,
-      assetRefs: []
+      assetRefs
     };
 
     // Store in node registry
