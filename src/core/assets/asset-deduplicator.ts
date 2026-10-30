@@ -62,7 +62,7 @@ export class AssetDeduplicator {
   private readonly maxJobBytes: number;
   private idCounter = 0;
 
-  constructor(options?: { maxFileBytes?: number; maxJobBytes?: number }) {
+  constructor(options?: { maxFileBytes?: number | undefined; maxJobBytes?: number | undefined }) {
     this.maxFileBytes = options?.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES;
     this.maxJobBytes = options?.maxJobBytes ?? DEFAULT_MAX_JOB_BYTES;
   }
