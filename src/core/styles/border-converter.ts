@@ -71,7 +71,7 @@ export function parseCornerRadii(styles: {
   if (rawRadius) {
     // If slash syntax present (horizontal / vertical), take horizontal
     const horizontalPart = rawRadius.split('/')[0]?.trim() ?? '';
-    const parts = horizontalPart.split(/\s+/).filter(Boolean).map(parseLengthPx);
+    const parts = horizontalPart.split(/\s+/).filter(Boolean).map((p) => parseLengthPx(p));
 
     if (parts.length === 1) {
       const v = parts[0] ?? 0;

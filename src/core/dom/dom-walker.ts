@@ -82,6 +82,48 @@ function snapshotComputedStyle(
   if (s.gridTemplateColumns) snapshot.gridTemplateColumns = s.gridTemplateColumns;
   if (s.gridTemplateRows) snapshot.gridTemplateRows = s.gridTemplateRows;
 
+  // Background properties
+  if (s.backgroundImage) snapshot.backgroundImage = s.backgroundImage;
+  if (s.backgroundSize) snapshot.backgroundSize = s.backgroundSize;
+  if (s.backgroundPosition) snapshot.backgroundPosition = s.backgroundPosition;
+  if (s.backgroundRepeat) snapshot.backgroundRepeat = s.backgroundRepeat;
+
+  // Individual 4-corner radii
+  if (s.borderTopLeftRadius) snapshot.borderTopLeftRadius = s.borderTopLeftRadius;
+  if (s.borderTopRightRadius) snapshot.borderTopRightRadius = s.borderTopRightRadius;
+  if (s.borderBottomRightRadius) snapshot.borderBottomRightRadius = s.borderBottomRightRadius;
+  if (s.borderBottomLeftRadius) snapshot.borderBottomLeftRadius = s.borderBottomLeftRadius;
+
+  // Individual 4-edge border widths
+  if (s.borderTopWidth) snapshot.borderTopWidth = s.borderTopWidth;
+  if (s.borderRightWidth) snapshot.borderRightWidth = s.borderRightWidth;
+  if (s.borderBottomWidth) snapshot.borderBottomWidth = s.borderBottomWidth;
+  if (s.borderLeftWidth) snapshot.borderLeftWidth = s.borderLeftWidth;
+
+  // Individual 4-edge border colors
+  if (s.borderTopColor) snapshot.borderTopColor = s.borderTopColor;
+  if (s.borderRightColor) snapshot.borderRightColor = s.borderRightColor;
+  if (s.borderBottomColor) snapshot.borderBottomColor = s.borderBottomColor;
+  if (s.borderLeftColor) snapshot.borderLeftColor = s.borderLeftColor;
+
+  // Individual 4-edge border styles
+  if (s.borderTopStyle) snapshot.borderTopStyle = s.borderTopStyle;
+  if (s.borderRightStyle) snapshot.borderRightStyle = s.borderRightStyle;
+  if (s.borderBottomStyle) snapshot.borderBottomStyle = s.borderBottomStyle;
+  if (s.borderLeftStyle) snapshot.borderLeftStyle = s.borderLeftStyle;
+
+  // Outline
+  if (s.outlineWidth) snapshot.outlineWidth = s.outlineWidth;
+  if (s.outlineStyle) snapshot.outlineStyle = s.outlineStyle;
+  if (s.outlineColor) snapshot.outlineColor = s.outlineColor;
+  if (s.outlineOffset) snapshot.outlineOffset = s.outlineOffset;
+
+  // Effects & Opacity
+  if (s.filter) snapshot.filter = s.filter;
+  if (s.backdropFilter) snapshot.backdropFilter = s.backdropFilter;
+  if (s.opacity) snapshot.opacity = s.opacity;
+  if (s.mixBlendMode) snapshot.mixBlendMode = s.mixBlendMode;
+
   return snapshot;
 }
 
