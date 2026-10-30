@@ -1,3 +1,7 @@
+import type { PageCaptureMetadata } from './page-capture';
+import type { SourceNode } from './source-node';
+import type { ExportDiagnostic } from './diagnostics';
+
 /**
  * Intermediate Scene Graph contracts representing target-independent layout nodes,
  * vectors, text, styles, and full scene documents.
@@ -118,6 +122,29 @@ export interface SceneNode {
   clipsContent: boolean;
   textData?: SceneTextData | undefined;
   layoutMetadata?: SceneLayoutMetadata | undefined;
+  sourceNodeId?: string | undefined;
+}
+
+export interface PageCapture {
+  metadata: PageCaptureMetadata;
+  nodes: SourceNode[];
+  assetRefs?: string[] | undefined;
+  diagnostics?: ExportDiagnostic[] | undefined;
+}
+
+export interface PageScene {
+  metadata: PageCaptureMetadata & {
+    totalNodes: number;
+  };
+  pageFrame: SceneNode;
+  nodes: SceneNode[];
+  diagnostics: ExportDiagnostic[];
+}
+
+export interface SceneBuilderOptions {
+  includeVisualSnapshot?: boolean | undefined;
+  collapseStructuralWrappers?: boolean | undefined;
+  exportProfile?: string | undefined;
 }
 
 export interface FigmaSceneDocument {
