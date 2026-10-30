@@ -20,4 +20,26 @@ if (typeof globalThis !== 'undefined') {
       },
     };
   }
+
+  // Mock standard ClipboardItem if not available in Node/jsdom test runtime
+  if (typeof g.ClipboardItem === 'undefined') {
+    class MockClipboardItem {
+      readonly types: readonly string[];
+      private readonly items: Record<string, Blob>;
+
+      constructor(items: Record<string, Blob>) {
+        this.items = items;
+        this.types = Object.freeze(Object.keys(items));
+      }
+
+      getType(type: string): Promise<Blob> {
+        const item = this.items[type];
+        if (!item) {
+          return Promise.reject(new Error(`DOMException: Failed to execute 'getType' on 'ClipboardItem'`));
+        }
+        return Promise.resolve(item);
+      }
+    }
+    g.ClipboardItem = MockClipboardItem;
+  }
 }
