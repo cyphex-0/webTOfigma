@@ -4,7 +4,63 @@
  * and document-space (full scrollable layout) in CSS pixels.
  */
 
-import type { SourceRect } from '../../shared/contracts/source-node';
+import type { SourceNode, SourceRect } from '../../shared/contracts/source-node';
+
+/**
+ * Re-bases an extracted subtree of SourceNodes relative to the root node's top-left origin (0, 0).
+ * Both viewport-space sourceRect and document-space documentRect are shifted so that
+ * the root element begins at x: 0, y: 0.
+ * Optionally synthesizes an ancestor background color if the root element's background is transparent.
+ */
+export function rebaseSubtreeCoordinates(
+  nodes: SourceNode[],
+  rootOrigin: SourceRect,
+  options?: {
+    includeAncestorBackground?: boolean | undefined;
+    ancestorBackgroundColor?: string | undefined;
+  }
+): SourceNode[] {
+  if (nodes.length === 0) return [];
+
+  const originX = rootOrigin.x;
+  const originY = rootOrigin.y;
+
+  return nodes.map((node, index) => {
+    const isRoot = index === 0;
+
+    let computedStyle = node.computedStyle;
+    if (
+      isRoot &&
+      options?.includeAncestorBackground &&
+      options.ancestorBackgroundColor &&
+      (!node.computedStyle.backgroundColor ||
+        node.computedStyle.backgroundColor === 'transparent' ||
+        node.computedStyle.backgroundColor === 'rgba(0, 0, 0, 0)')
+    ) {
+      computedStyle = {
+        ...node.computedStyle,
+        backgroundColor: options.ancestorBackgroundColor
+      };
+    }
+
+    return {
+      ...node,
+      sourceRect: roundRect({
+        x: node.sourceRect.x - originX,
+        y: node.sourceRect.y - originY,
+        width: node.sourceRect.width,
+        height: node.sourceRect.height
+      }),
+      documentRect: roundRect({
+        x: node.documentRect.x - originX,
+        y: node.documentRect.y - originY,
+        width: node.documentRect.width,
+        height: node.documentRect.height
+      }),
+      computedStyle
+    };
+  });
+}
 
 /**
  * Converts viewport-space client rect (getBoundingClientRect) into document-space CSS coordinates

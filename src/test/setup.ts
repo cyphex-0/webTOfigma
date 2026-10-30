@@ -244,4 +244,9 @@ if (typeof globalThis !== 'undefined') {
       return origGetComputedStyle.call(window, elt);
     };
   }
+
+  // Provide document.elementFromPoint fallback in JSDOM
+  if (typeof document !== 'undefined' && !document.elementFromPoint) {
+    document.elementFromPoint = (_x, _y) => null;
+  }
 }
