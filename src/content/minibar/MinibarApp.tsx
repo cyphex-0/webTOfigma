@@ -114,6 +114,23 @@ export const MinibarApp: React.FC<MinibarAppProps> = ({
     setIsStarting(true);
     setCopyState('idle');
     setCopyFeedback(null);
+
+    if (mode === 'select-element') {
+      try {
+        await browser.runtime.sendMessage({
+          id: `minibar_pick_${Date.now()}`,
+          type: 'ACTIVATE_ELEMENT_PICKER',
+          payload: {},
+          timestamp: Date.now()
+        });
+      } catch (err) {
+        console.error('[WebToFigma] Error activating element picker from minibar:', err);
+      } finally {
+        setIsStarting(false);
+      }
+      return;
+    }
+
     try {
       const response = (await browser.runtime.sendMessage({
         id: `minibar_cap_${Date.now()}`,

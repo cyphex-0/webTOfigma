@@ -281,6 +281,70 @@ export async function handleRuntimeMessage(
         }
       }
 
+      // 10. Activate Element Picker
+      case 'ACTIVATE_ELEMENT_PICKER': {
+        const rawPayload = (envelope.payload ?? {}) as { tabId?: number; options?: unknown };
+        let tabId = rawPayload.tabId;
+        if (!tabId && sender?.tab?.id) {
+          tabId = sender.tab.id;
+        }
+        if (!tabId) {
+          const activeTabs = await browser.tabs.query({ active: true, currentWindow: true });
+          tabId = activeTabs[0]?.id;
+        }
+        if (!tabId) {
+          throw new InvalidPayloadError('No target tab found for element picker');
+        }
+
+        try {
+          const res = (await browser.tabs.sendMessage(tabId, {
+            type: 'ACTIVATE_ELEMENT_PICKER',
+            payload: rawPayload.options
+          })) as { active: boolean };
+          return { id: requestId, success: true, payload: res };
+        } catch {
+          try {
+            await browser.scripting.executeScript({
+              target: { tabId },
+              files: ['content.js']
+            });
+            const res = (await browser.tabs.sendMessage(tabId, {
+              type: 'ACTIVATE_ELEMENT_PICKER',
+              payload: rawPayload.options
+            })) as { active: boolean };
+            return { id: requestId, success: true, payload: res };
+          } catch (injectErr: unknown) {
+            const msg = injectErr instanceof Error ? injectErr.message : String(injectErr);
+            throw new ScriptInjectionError(tabId, msg);
+          }
+        }
+      }
+
+      // 11. Cancel Element Picker
+      case 'CANCEL_ELEMENT_PICKER': {
+        const rawPayload = (envelope.payload ?? {}) as { tabId?: number };
+        let tabId = rawPayload.tabId;
+        if (!tabId && sender?.tab?.id) {
+          tabId = sender.tab.id;
+        }
+        if (!tabId) {
+          const activeTabs = await browser.tabs.query({ active: true, currentWindow: true });
+          tabId = activeTabs[0]?.id;
+        }
+        if (!tabId) {
+          return { id: requestId, success: true, payload: { active: false } };
+        }
+
+        try {
+          const res = (await browser.tabs.sendMessage(tabId, {
+            type: 'CANCEL_ELEMENT_PICKER'
+          })) as { active: boolean };
+          return { id: requestId, success: true, payload: res };
+        } catch {
+          return { id: requestId, success: true, payload: { active: false } };
+        }
+      }
+
       default:
         throw new ExtensionError(
           `Unknown message type: "${type}"`,

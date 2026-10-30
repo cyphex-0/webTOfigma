@@ -118,6 +118,39 @@ export const TeardownMinibarRequestSchema = z.object({
   tabId: z.number().int().positive().optional()
 });
 
+export const ActivateElementPickerRequestSchema = z.object({
+  tabId: z.number().int().optional(),
+  options: z
+    .object({
+      includeAncestorBackground: z.boolean().optional()
+    })
+    .optional()
+});
+
+export const ActivateElementPickerResponseSchema = z.object({
+  active: z.boolean()
+});
+
+export const CancelElementPickerRequestSchema = z.object({
+  tabId: z.number().int().optional()
+});
+
+export const CancelElementPickerResponseSchema = z.object({
+  active: z.boolean()
+});
+
+export const ElementPickedNotificationSchema = z.object({
+  nodeCount: z.number().int().nonnegative(),
+  rootTag: z.string(),
+  rootName: z.string(),
+  sourceRect: z.object({
+    x: z.number(),
+    y: z.number(),
+    width: z.number(),
+    height: z.number()
+  })
+});
+
 // -------------------------------------------------------------
 // Streaming Port Message Schemas
 // -------------------------------------------------------------

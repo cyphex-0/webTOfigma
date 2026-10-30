@@ -9,6 +9,11 @@ import { browser } from '../shared/browser/browser-api';
 import { toggleMinibar, mountMinibar } from './minibar/inject-minibar';
 import { teardownMinibar, isMinibarInjected } from './minibar/teardown';
 import { DOMWalker } from '../core/dom/dom-walker';
+import { ElementPicker } from './picker/element-picker';
+import { rebaseSubtreeCoordinates } from '../core/dom/coordinate-normalizer';
+import { enrichNodesWithSemantics } from '../core/dom/semantic-classifier';
+
+export const elementPicker = new ElementPicker();
 import type {
   PortHeartbeatPing,
   PortHeartbeatPong,
@@ -173,6 +178,53 @@ browser.runtime.onMessage.addListener((message: unknown) => {
       return Promise.resolve({ active: isMinibarInjected() });
     }
 
+    if (msg.type === 'ACTIVATE_ELEMENT_PICKER') {
+      const options = (msg as any).payload || {};
+      elementPicker.start(
+        (result) => {
+          const walker = new DOMWalker({
+            captureMode: 'select-element',
+            resolvePaintOrder: true
+          });
+          const walkResult = walker.walk(result.element);
+
+          const rebasedNodes = rebaseSubtreeCoordinates(
+            walkResult.nodes,
+            result.rect,
+            {
+              includeAncestorBackground: result.includeAncestorBackground,
+              ancestorBackgroundColor: result.ancestorBackgroundColor
+            }
+          );
+
+          const semanticNodes = enrichNodesWithSemantics(rebasedNodes);
+
+          void browser.runtime.sendMessage({
+            type: 'ELEMENT_PICKED',
+            payload: {
+              nodeCount: semanticNodes.length,
+              rootTag: result.element.tagName.toLowerCase(),
+              rootName: semanticNodes[0]?.name || 'Selected Element',
+              sourceRect: result.rect
+            }
+          });
+        },
+        () => {
+          console.log('[WebToFigma] Element picker cancelled.');
+        }
+      );
+      return Promise.resolve({ active: true });
+    }
+
+    if (msg.type === 'CANCEL_ELEMENT_PICKER') {
+      elementPicker.stop();
+      return Promise.resolve({ active: false });
+    }
+
+    if (msg.type === 'IS_ELEMENT_PICKER_ACTIVE') {
+      return Promise.resolve({ active: elementPicker.isActive() });
+    }
+
     if (msg.type === 'EXTRACT_DOM_SNAPSHOT') {
       const payload = (msg as any).payload || {};
       const walker = new DOMWalker({
@@ -191,6 +243,7 @@ browser.runtime.onMessage.addListener((message: unknown) => {
 // Clean teardown upon navigation / page unload
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
+    elementPicker.stop();
     teardownMinibar();
     streamClient.disconnect();
   });

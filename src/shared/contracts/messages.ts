@@ -170,6 +170,35 @@ export interface TeardownMinibarResponse {
 }
 
 // -------------------------------------------------------------
+// 9. ELEMENT PICKER CONTROLS
+// -------------------------------------------------------------
+export interface ActivateElementPickerRequest {
+  tabId?: number | undefined;
+  options?: {
+    includeAncestorBackground?: boolean | undefined;
+  } | undefined;
+}
+
+export interface ActivateElementPickerResponse {
+  active: boolean;
+}
+
+export interface CancelElementPickerRequest {
+  tabId?: number | undefined;
+}
+
+export interface CancelElementPickerResponse {
+  active: boolean;
+}
+
+export interface ElementPickedNotification {
+  nodeCount: number;
+  rootTag: string;
+  rootName: string;
+  sourceRect: { x: number; y: number; width: number; height: number };
+}
+
+// -------------------------------------------------------------
 // Streaming Port Contracts (connect name: 'STREAM_SNAPSHOT')
 // -------------------------------------------------------------
 export interface PageSnapshotChunk {

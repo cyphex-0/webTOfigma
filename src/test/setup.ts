@@ -133,6 +133,12 @@ if (typeof globalThis !== 'undefined') {
     if (typeof callback === 'function') callback(tab);
     return Promise.resolve(tab);
   };
+  g.chrome.tabs.sendMessage = (tabId: any, message: any, callback?: any) => {
+    const res = {};
+    if (typeof callback === 'function') callback(res);
+    return Promise.resolve(res);
+  };
+
   g.__setMockTabs = (tabs: any[]) => {
     currentTabs = tabs;
   };
