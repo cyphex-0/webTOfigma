@@ -15,6 +15,7 @@ import { PageCapture, PageScene } from '../../shared/contracts/scene';
 import { ExportDiagnostic } from '../../shared/contracts/diagnostics';
 import { captureViewport, ViewportCaptureOptions } from '../capture/viewport-capture';
 import { captureSelectedElement, SelectedElementCaptureOptions } from '../capture/selected-element-capture';
+import { captureFullPage, FullPageCaptureOptions } from '../capture/full-page-capture';
 import { buildPageScene } from '../scene/scene-builder';
 import { validatePageScene } from '../scene/scene-validation';
 
@@ -102,10 +103,21 @@ export async function executeExportPipeline(
       capture = selResult.capture;
       diagnostics.push(...selResult.diagnostics);
     } else {
-      // Full-page mode will be wired in Phase 14; for now fall back to viewport
-      const vpResult = captureViewport();
-      capture = vpResult.capture;
-      diagnostics.push(...vpResult.diagnostics);
+      // Full-page mode
+      const fpResult = await captureFullPage({
+        signal: request.signal,
+        scrollOptions: {
+          settleDelayMs: 50,
+          maxSteps: 30
+        },
+        fixedStickyOptions: {
+          excludeCookieBanners: request.options?.excludeCookieBanners,
+          excludeChatWidgets: request.options?.excludeChatWidgets,
+          excludeFixedOverlays: request.options?.excludeFixedOverlays
+        }
+      });
+      capture = fpResult.capture;
+      diagnostics.push(...fpResult.diagnostics);
     }
 
     checkAbort();
