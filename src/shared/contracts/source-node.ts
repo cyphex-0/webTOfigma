@@ -68,6 +68,8 @@ export interface TextRun {
 
 export interface SourceNode {
   nodeId: string;
+  name?: string | undefined;
+  semanticKind?: string | undefined;
   parentId: string | null;
   childIds: string[];
   sourceTag: string;

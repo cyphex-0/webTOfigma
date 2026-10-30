@@ -65,6 +65,8 @@ export const TextRunSchema = z.object({
 
 export const SourceNodeSchema = z.object({
   nodeId: z.string().min(1),
+  name: z.string().optional(),
+  semanticKind: z.string().optional(),
   parentId: z.string().nullable(),
   childIds: z.array(z.string()),
   sourceTag: z.string(),
