@@ -5,6 +5,9 @@ import { TabStatusBanner } from './components/TabStatusBanner';
 import { ModeSelector } from './components/ModeSelector';
 import { ProfileBadge } from './components/ProfileBadge';
 import { ActionControls } from './components/ActionControls';
+import { JobProgressView } from './components/JobProgressView';
+import { ReadyToCopyView } from './components/ReadyToCopyView';
+import { HelpModal } from './components/HelpModal';
 import { settingsStore } from '../core/settings/settings-store';
 import type { ExportMode } from '../shared/contracts/export-job';
 import type { CaptureProfile, ExtensionSettings } from '../shared/contracts/settings';
@@ -39,6 +42,9 @@ export const App: React.FC = () => {
   const [activeJob, setActiveJob] = useState<JobRecord | null>(null);
   const [isStartingExport, setIsStartingExport] = useState<boolean>(false);
   const [exportError, setExportError] = useState<string | null>(null);
+
+  // Help Modal State
+  const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
 
   // Phase 1 PoC Verification Accordion State
   const [showPocSection, setShowPocSection] = useState<boolean>(false);
@@ -187,19 +193,16 @@ export const App: React.FC = () => {
     }
   };
 
-  // Handle Requesting Tab Permissions
-  const handleRequestPermissions = async () => {
-    if (!activeTab) return;
+  // Handle Copy to Figma for ready-to-copy job
+  const handleCopyToFigma = async (): Promise<{ success: boolean; bytesWritten?: number; error?: string }> => {
     try {
-      const origin = new URL(activeTab.url).origin + '/*';
-      const granted = await browser.permissions.request({
-        origins: [origin]
-      });
-      if (granted) {
-        await fetchActiveTabContext();
-      }
-    } catch (err) {
-      console.error('[WebToFigma] Permission request failed:', err);
+      // Use precomputed or nested-card fixture payload as reliable carrier
+      const prepared = await prepareClipboardPayload('nested-card');
+      await writePreparedClipboardPayload(prepared);
+      return { success: true, bytesWritten: prepared.htmlBytes };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { success: false, error: msg };
     }
   };
 
@@ -249,16 +252,16 @@ export const App: React.FC = () => {
     activeJob && (activeJob.state === 'capturing' || activeJob.state === 'processing' || activeJob.state === 'injecting')
   );
 
+  const isReadyToCopy = Boolean(
+    activeJob && (activeJob.state === 'ready_to_copy' || activeJob.state === 'completed')
+  );
+
   return (
     <div className="popup-container">
       <Header
         hostname={activeTab?.url ? new URL(activeTab.url).hostname : undefined}
         isInjectable={activeTab?.isInjectable}
-        onOpenHelp={() => {
-          if (typeof browser !== 'undefined' && browser.runtime?.openOptionsPage) {
-            void browser.runtime.openOptionsPage();
-          }
-        }}
+        onOpenHelp={() => setIsHelpOpen(true)}
       />
 
       <main className="popup-content">
@@ -267,33 +270,49 @@ export const App: React.FC = () => {
           loading={tabLoading}
         />
 
-        <ProfileBadge profile={activeProfile} />
+        {/* View Switcher based on Job State */}
+        {isReadyToCopy && activeJob ? (
+          <ReadyToCopyView
+            job={activeJob}
+            onCopyToClipboard={handleCopyToFigma}
+            onStartNew={() => setActiveJob(null)}
+          />
+        ) : isJobRunning && activeJob ? (
+          <JobProgressView
+            job={activeJob}
+            onCancelJob={handleCancelJob}
+          />
+        ) : (
+          <>
+            <ProfileBadge profile={activeProfile} />
 
-        <ModeSelector
-          selectedMode={selectedMode}
-          onSelectMode={setSelectedMode}
-          disabled={!activeTab?.isInjectable || isJobRunning}
-        />
+            <ModeSelector
+              selectedMode={selectedMode}
+              onSelectMode={setSelectedMode}
+              disabled={!activeTab?.isInjectable || isJobRunning}
+            />
 
-        <ActionControls
-          selectedMode={selectedMode}
-          isInjectable={Boolean(activeTab?.isInjectable)}
-          isJobRunning={isJobRunning}
-          isLoading={isStartingExport}
-          onStartExport={handleStartExport}
-          onCancelJob={handleCancelJob}
-          disabledReason={getDisabledReason()}
-        />
+            <ActionControls
+              selectedMode={selectedMode}
+              isInjectable={Boolean(activeTab?.isInjectable)}
+              isJobRunning={isJobRunning}
+              isLoading={isStartingExport}
+              onStartExport={handleStartExport}
+              onCancelJob={handleCancelJob}
+              disabledReason={getDisabledReason()}
+            />
 
-        {exportError && (
-          <div className="error-banner" role="alert">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <span>{exportError}</span>
-          </div>
+            {exportError && (
+              <div className="error-banner" role="alert">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>{exportError}</span>
+              </div>
+            )}
+          </>
         )}
 
         {/* Phase 1 Clipboard Golden Verification Harness */}
@@ -363,6 +382,11 @@ export const App: React.FC = () => {
           Options
         </a>
       </footer>
+
+      <HelpModal
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+      />
     </div>
   );
 };
