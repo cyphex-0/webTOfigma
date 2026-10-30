@@ -32,6 +32,22 @@ if (typeof globalThis !== 'undefined') {
   if (!g.chrome.storage) {
     g.chrome.storage = {};
   }
+  const storageChangeListeners: Array<(changes: Record<string, any>, areaName: string) => void> = [];
+  g.chrome.storage.onChanged = {
+    addListener: (cb: (changes: Record<string, any>, areaName: string) => void) => {
+      storageChangeListeners.push(cb);
+    },
+    removeListener: (cb: (changes: Record<string, any>, areaName: string) => void) => {
+      const idx = storageChangeListeners.indexOf(cb);
+      if (idx !== -1) storageChangeListeners.splice(idx, 1);
+    }
+  };
+  g.__triggerStorageChange = (changes: Record<string, any>, areaName = 'local') => {
+    for (const cb of storageChangeListeners) {
+      cb(changes, areaName);
+    }
+  };
+
   g.chrome.storage.local = {
     get: (keys: string | string[] | Record<string, any> | null, callback?: any) => {
       let result: Record<string, any> = {};
@@ -48,21 +64,38 @@ if (typeof globalThis !== 'undefined') {
       return Promise.resolve(result);
     },
     set: (items: Record<string, any>, callback?: any) => {
+      const changes: Record<string, any> = {};
+      for (const [k, v] of Object.entries(items)) {
+        changes[k] = { oldValue: mockStorageStore[k], newValue: v };
+      }
       Object.assign(mockStorageStore, items);
+      for (const cb of storageChangeListeners) {
+        cb(changes, 'local');
+      }
       if (typeof callback === 'function') callback();
       return Promise.resolve();
     },
     remove: (keys: string | string[], callback?: any) => {
       const arr = Array.isArray(keys) ? keys : [keys];
+      const changes: Record<string, any> = {};
       for (const k of arr) {
+        changes[k] = { oldValue: mockStorageStore[k], newValue: undefined };
         delete mockStorageStore[k];
+      }
+      for (const cb of storageChangeListeners) {
+        cb(changes, 'local');
       }
       if (typeof callback === 'function') callback();
       return Promise.resolve();
     },
     clear: (callback?: any) => {
+      const changes: Record<string, any> = {};
       for (const k of Object.keys(mockStorageStore)) {
+        changes[k] = { oldValue: mockStorageStore[k], newValue: undefined };
         delete mockStorageStore[k];
+      }
+      for (const cb of storageChangeListeners) {
+        cb(changes, 'local');
       }
       if (typeof callback === 'function') callback();
       return Promise.resolve();
