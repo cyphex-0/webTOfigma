@@ -1,0 +1,160 @@
+import type { SourceNode } from '../../shared/contracts/source-node';
+
+export const svgIconRaw = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M2 17L12 22L22 17" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M2 12L12 17L22 12" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+
+export const svgIconNodes: SourceNode[] = [
+  // SVG Root Element
+  {
+    nodeId: 'p0_n_svg_icon',
+    parentId: null,
+    childIds: ['p0_n_svg_path1', 'p0_n_svg_path2', 'p0_n_svg_path3'],
+    sourceTag: 'svg',
+    role: 'img',
+    accessibleLabel: 'Layers Icon',
+    classHints: ['w-6', 'h-6', 'text-blue-600'],
+    textRuns: [],
+    sourceRect: { x: 16, y: 16, width: 24, height: 24 },
+    documentRect: { x: 16, y: 16, width: 24, height: 24 },
+    visibility: { isVisible: true, isClipped: false, isOffscreen: false, opacity: 1 },
+    stacking: { createsStackingContext: false, zIndex: 'auto' },
+    computedStyle: {
+      display: 'inline-block',
+      position: 'static',
+      overflow: 'hidden',
+      boxSizing: 'border-box',
+      backgroundColor: 'rgba(0, 0, 0, 0)',
+      color: 'rgb(37, 99, 235)',
+      fontSize: '16px',
+      fontFamily: 'sans-serif',
+      fontWeight: '400',
+      lineHeight: '16px',
+      letterSpacing: '0px',
+      textAlign: 'start',
+      borderRadius: '0px',
+      borderWidth: '0px',
+      borderColor: 'transparent',
+      borderStyle: 'none',
+      boxShadow: 'none',
+      transform: 'none',
+      padding: '0px',
+      margin: '0px'
+    },
+    layoutHints: { isFlexContainer: false, isGridContainer: false, isInline: true, isBlock: false },
+    assetRefs: ['asset_layers_icon_hash']
+  },
+  // Path 1
+  {
+    nodeId: 'p0_n_svg_path1',
+    parentId: 'p0_n_svg_icon',
+    childIds: [],
+    sourceTag: 'path',
+    classHints: [],
+    textRuns: [],
+    sourceRect: { x: 18, y: 18, width: 20, height: 10 },
+    documentRect: { x: 18, y: 18, width: 20, height: 10 },
+    visibility: { isVisible: true, isClipped: false, isOffscreen: false, opacity: 1 },
+    stacking: { createsStackingContext: false, zIndex: 'auto' },
+    computedStyle: {
+      display: 'inline',
+      position: 'static',
+      overflow: 'visible',
+      boxSizing: 'border-box',
+      backgroundColor: 'transparent',
+      color: 'rgb(37, 99, 235)',
+      fontSize: '16px',
+      fontFamily: 'sans-serif',
+      fontWeight: '400',
+      lineHeight: '16px',
+      letterSpacing: '0px',
+      textAlign: 'start',
+      borderRadius: '0px',
+      borderWidth: '0px',
+      borderColor: 'transparent',
+      borderStyle: 'none',
+      boxShadow: 'none',
+      transform: 'none',
+      padding: '0px',
+      margin: '0px'
+    },
+    layoutHints: { isFlexContainer: false, isGridContainer: false, isInline: true, isBlock: false },
+    assetRefs: []
+  },
+  // Path 2
+  {
+    nodeId: 'p0_n_svg_path2',
+    parentId: 'p0_n_svg_icon',
+    childIds: [],
+    sourceTag: 'path',
+    classHints: [],
+    textRuns: [],
+    sourceRect: { x: 18, y: 28, width: 20, height: 5 },
+    documentRect: { x: 18, y: 28, width: 20, height: 5 },
+    visibility: { isVisible: true, isClipped: false, isOffscreen: false, opacity: 1 },
+    stacking: { createsStackingContext: false, zIndex: 'auto' },
+    computedStyle: {
+      display: 'inline',
+      position: 'static',
+      overflow: 'visible',
+      boxSizing: 'border-box',
+      backgroundColor: 'transparent',
+      color: 'rgb(37, 99, 235)',
+      fontSize: '16px',
+      fontFamily: 'sans-serif',
+      fontWeight: '400',
+      lineHeight: '16px',
+      letterSpacing: '0px',
+      textAlign: 'start',
+      borderRadius: '0px',
+      borderWidth: '0px',
+      borderColor: 'transparent',
+      borderStyle: 'none',
+      boxShadow: 'none',
+      transform: 'none',
+      padding: '0px',
+      margin: '0px'
+    },
+    layoutHints: { isFlexContainer: false, isGridContainer: false, isInline: true, isBlock: false },
+    assetRefs: []
+  },
+  // Path 3
+  {
+    nodeId: 'p0_n_svg_path3',
+    parentId: 'p0_n_svg_icon',
+    childIds: [],
+    sourceTag: 'path',
+    classHints: [],
+    textRuns: [],
+    sourceRect: { x: 18, y: 33, width: 20, height: 5 },
+    documentRect: { x: 18, y: 33, width: 20, height: 5 },
+    visibility: { isVisible: true, isClipped: false, isOffscreen: false, opacity: 1 },
+    stacking: { createsStackingContext: false, zIndex: 'auto' },
+    computedStyle: {
+      display: 'inline',
+      position: 'static',
+      overflow: 'visible',
+      boxSizing: 'border-box',
+      backgroundColor: 'transparent',
+      color: 'rgb(37, 99, 235)',
+      fontSize: '16px',
+      fontFamily: 'sans-serif',
+      fontWeight: '400',
+      lineHeight: '16px',
+      letterSpacing: '0px',
+      textAlign: 'start',
+      borderRadius: '0px',
+      borderWidth: '0px',
+      borderColor: 'transparent',
+      borderStyle: 'none',
+      boxShadow: 'none',
+      transform: 'none',
+      padding: '0px',
+      margin: '0px'
+    },
+    layoutHints: { isFlexContainer: false, isGridContainer: false, isInline: true, isBlock: false },
+    assetRefs: []
+  }
+];
