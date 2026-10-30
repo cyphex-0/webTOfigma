@@ -1,0 +1,37 @@
+{
+  "name": "web-to-figma-exporter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first cross-browser extension to capture websites and export them directly to Figma via clipboard",
+  "type": "module",
+  "scripts": {
+    "dev:chromium": "node scripts/build-extension.mjs chromium --watch",
+    "dev:firefox": "node scripts/build-extension.mjs firefox --watch",
+    "build": "npm run build:all",
+    "build:chromium": "node scripts/build-extension.mjs chromium",
+    "build:firefox": "node scripts/build-extension.mjs firefox",
+    "build:all": "node scripts/build-extension.mjs all",
+    "clean": "node scripts/clean.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "verify": "node scripts/verify-build.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "webextension-polyfill": "^0.12.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/webextension-polyfill": "^0.12.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8"
+  }
+}
