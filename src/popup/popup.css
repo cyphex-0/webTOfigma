@@ -8,6 +8,10 @@
   --figma-blue: #0d99ff;
   --figma-purple: #9747ff;
   --accent-badge: #eef3ff;
+  --success-green: #10b981;
+  --success-bg: #ecfdf5;
+  --error-red: #ef4444;
+  --error-bg: #fef2f2;
 }
 
 * {
@@ -17,8 +21,8 @@
 }
 
 body {
-  width: 340px;
-  min-height: 280px;
+  width: 360px;
+  min-height: 480px;
   font-family: var(--font-family);
   background-color: var(--bg-primary);
   color: var(--text-primary);
@@ -31,7 +35,7 @@ body {
   display: flex;
   flex-direction: column;
   padding: 16px;
-  gap: 14px;
+  gap: 12px;
 }
 
 .header {
@@ -39,18 +43,18 @@ body {
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--border-color);
-  padding-bottom: 12px;
+  padding-bottom: 10px;
 }
 
 .title-area {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .logo-badge {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 6px;
   background: linear-gradient(135deg, var(--figma-blue), var(--figma-purple));
   display: flex;
@@ -58,7 +62,7 @@ body {
   justify-content: center;
   color: #fff;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .title-text h1 {
@@ -69,74 +73,218 @@ body {
 
 .target-badge {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--figma-blue);
   background-color: var(--accent-badge);
   padding: 2px 8px;
   border-radius: 12px;
 }
 
-.status-card {
+/* POC Card */
+.poc-card {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
 
-.status-title {
+.poc-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.poc-badge {
+  font-size: 10px;
+  font-weight: 700;
+  background-color: var(--figma-purple);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.poc-subtitle {
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
-  font-size: 12px;
 }
 
-.status-desc {
+.fixture-selector-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fixture-label {
+  font-size: 11px;
+  font-weight: 600;
   color: var(--text-secondary);
-  font-size: 12px;
 }
 
-.ping-btn {
-  background-color: var(--figma-blue);
-  color: #fff;
+.fixture-select {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: #fff;
+  color: var(--text-primary);
+  font-family: inherit;
+  outline: none;
+}
+
+.fixture-select:focus {
+  border-color: var(--figma-blue);
+}
+
+.fixture-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.payload-meta-row {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+}
+
+.meta-status.ready {
+  color: var(--success-green);
+  font-weight: 600;
+}
+
+.meta-status.preparing {
+  color: var(--figma-blue);
+  font-style: italic;
+}
+
+.meta-status.error {
+  color: var(--error-red);
+}
+
+.copy-btn {
+  width: 100%;
+  padding: 9px 12px;
+  background: linear-gradient(135deg, var(--figma-blue), #0077e6);
+  color: #ffffff;
   border: none;
   border-radius: 6px;
-  padding: 8px 12px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   transition: opacity 0.15s ease;
 }
 
+.copy-btn:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.copy-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.feedback-banner {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.feedback-success {
+  background-color: var(--success-bg);
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+
+.feedback-error {
+  background-color: var(--error-bg);
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.gate-guide {
+  background-color: #ffffff;
+  border: 1px dashed var(--border-color);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11px;
+}
+
+.guide-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.gate-guide ul {
+  padding-left: 18px;
+  color: var(--text-secondary);
+}
+
+.gate-guide li {
+  margin-bottom: 2px;
+}
+
+/* Diagnostic Section */
+.diag-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-color);
+}
+
+.ping-btn {
+  padding: 6px 10px;
+  background-color: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
 .ping-btn:hover {
-  opacity: 0.9;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .ping-result {
-  font-size: 11px;
-  color: #0969da;
-  background-color: #ddf4ff;
+  font-family: monospace;
+  font-size: 10px;
+  background: var(--bg-secondary);
+  padding: 6px;
   border-radius: 4px;
-  padding: 6px 8px;
   word-break: break-all;
 }
 
+/* Footer */
 .footer {
-  margin-top: auto;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  border-top: 1px solid var(--border-color);
-  padding-top: 10px;
+  justify-content: space-between;
   font-size: 11px;
   color: var(--text-secondary);
+  padding-top: 6px;
+  border-top: 1px solid var(--border-color);
 }
 
 .footer a {
   color: var(--figma-blue);
-  text-decoration: none;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .footer a:hover {
