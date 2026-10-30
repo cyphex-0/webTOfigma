@@ -1,23 +1,18 @@
-import { browser, getBrowserTargetName } from '../shared/browser/browser-api';
+import { getBrowserTargetName } from '../shared/browser/browser-api';
+import { registerMessageListeners } from './message-router';
+import { jobRegistry } from './job-registry';
 
+/**
+ * Initializes shared background event routing and durable job recovery.
+ * Synchronous listener registration occurs immediately on module evaluation.
+ */
 export function initializeSharedBackground(): void {
   const target = getBrowserTargetName();
-  console.log(`[WebToFigma] Background service initialized on ${target}. (Phase 0 Baseline)`);
+  console.log(`[WebToFigma] Background service initialized on ${target}. (Phase 2 MV3 Runtime)`);
 
-  // Register message listener synchronously at module evaluation
-  browser.runtime.onMessage.addListener((message: unknown) => {
-    if (typeof message === 'object' && message !== null && (message as any).type === 'PING') {
-      return Promise.resolve({
-        status: 'PONG',
-        target,
-        timestamp: Date.now(),
-      });
-    }
-    return undefined;
-  });
+  // 1. Register message listeners synchronously before any async operations
+  registerMessageListeners();
 
-  // Handle extension installation/update
-  browser.runtime.onInstalled.addListener((details) => {
-    console.log(`[WebToFigma] Extension event: ${details.reason}`);
-  });
+  // 2. Asynchronously recover or prune any stale in-flight jobs from storage
+  void jobRegistry.initialize();
 }

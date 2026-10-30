@@ -29,9 +29,9 @@ export interface JobRecord {
   updatedAt: number;
   progressPercent: number;
   currentStep: string;
-  nodeCount?: number;
+  nodeCount?: number | undefined;
   warnings: string[];
-  error?: SerializedExtensionError;
+  error?: SerializedExtensionError | undefined;
 }
 
 // -------------------------------------------------------------
@@ -47,24 +47,24 @@ export interface MessageEnvelope<T = unknown> {
 export interface MessageResponse<T = unknown> {
   id: string;
   success: boolean;
-  payload?: T;
-  error?: SerializedExtensionError;
+  payload?: T | undefined;
+  error?: SerializedExtensionError | undefined;
 }
 
 // -------------------------------------------------------------
 // 1. GET_ACTIVE_TAB_CONTEXT
 // -------------------------------------------------------------
 export interface GetActiveTabContextRequest {
-  includeFavicon?: boolean;
+  includeFavicon?: boolean | undefined;
 }
 
 export interface ActiveTabContext {
   tabId: number;
   url: string;
   title: string;
-  favIconUrl?: string;
+  favIconUrl?: string | undefined;
   isInjectable: boolean;
-  restrictionReason?: string;
+  restrictionReason?: string | undefined;
 }
 
 export interface GetActiveTabContextResponse {
