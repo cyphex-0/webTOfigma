@@ -175,11 +175,12 @@
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
+  gap: 8px;
 }
 
 .minibar-step-label {
   color: #64748b;
-  max-width: 200px;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -188,17 +189,85 @@
 .minibar-percent-label {
   font-weight: 700;
   color: #2563eb;
+  font-variant-numeric: tabular-nums;
+}
+
+.minibar-btn-cancel {
+  align-self: flex-end;
+  padding: 3px 8px;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.minibar-btn-cancel:hover {
+  background-color: #fef2f2;
+  border-color: #fca5a5;
+  color: #ef4444;
+}
+
+/* Compact Progress & Ready in Collapsed Pill */
+.minibar-compact-job {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.minibar-compact-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background-color: #10b981;
+  color: #ffffff;
+  border: 1px solid #059669;
+  border-radius: 14px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
+}
+
+.minibar-compact-copy-btn:hover {
+  background-color: #059669;
+}
+
+.minibar-compact-copy-btn.copied {
+  background-color: #047857;
 }
 
 /* Ready to Copy Banner */
 .minibar-ready-box {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px;
+  gap: 8px;
+  padding: 10px;
   background-color: #ecfdf5;
   border: 1px solid #a7f3d0;
   border-radius: 8px;
+}
+
+.minibar-ready-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: #065f46;
+  font-size: 12px;
+}
+
+.minibar-ready-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #047857;
 }
 
 .minibar-btn-copy {
@@ -215,17 +284,42 @@
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 1px 3px rgba(16, 185, 129, 0.2);
+  transition: background-color 0.15s ease;
 }
 
 .minibar-btn-copy:hover {
   background-color: #059669;
 }
 
+.minibar-btn-copy.copied {
+  background-color: #047857;
+}
+
 .minibar-copy-feedback {
-  font-size: 10px;
+  font-size: 11px;
   color: #065f46;
   text-align: center;
-  font-weight: 500;
+  font-weight: 600;
+  padding: 2px 0;
+}
+
+.minibar-ready-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.minibar-btn-dismiss {
+  background: transparent;
+  border: none;
+  font-size: 10px;
+  color: #059669;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.minibar-btn-dismiss:hover {
+  color: #047857;
 }
 
 /* Accessibility Focus */
