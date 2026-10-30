@@ -8,3 +8,6 @@ export * from './route-categorizer';
 export * from './sitemap-parser';
 export * from './link-discovery';
 export * from './crawl-scope';
+export * from './route-filter';
+export * from './route-order';
+export * from './route-selection';

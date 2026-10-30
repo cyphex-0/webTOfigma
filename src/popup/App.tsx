@@ -8,6 +8,8 @@ import { ActionControls } from './components/ActionControls';
 import { JobProgressView } from './components/JobProgressView';
 import { ReadyToCopyView } from './components/ReadyToCopyView';
 import { HelpModal } from './components/HelpModal';
+import { RouteReview } from './components/RouteReview';
+import { discoverSiteRoutes, DiscoveredRoute } from '../core/crawler';
 import { settingsStore } from '../core/settings/settings-store';
 import type { ExportMode } from '../shared/contracts/export-job';
 import type { CaptureProfile, ExtensionSettings } from '../shared/contracts/settings';
@@ -38,6 +40,11 @@ export const App: React.FC = () => {
   // Active Tab & Permission State
   const [activeTab, setActiveTab] = useState<ActiveTabContext | null>(null);
   const [tabLoading, setTabLoading] = useState<boolean>(true);
+
+  // Multi-Page Route Review State
+  const [showRouteReview, setShowRouteReview] = useState<boolean>(false);
+  const [candidateRoutes, setCandidateRoutes] = useState<DiscoveredRoute[]>([]);
+  const [isDiscoveringRoutes, setIsDiscoveringRoutes] = useState<boolean>(false);
 
   // Active Job Execution State
   const [activeJob, setActiveJob] = useState<JobRecord | null>(null);
@@ -131,8 +138,8 @@ export const App: React.FC = () => {
     void fetchActiveJob();
   }, [fetchActiveTabContext, fetchActiveJob]);
 
-  // Handle Export Initiation
-  const handleStartExport = async () => {
+  // Execute Capture Job with optional selected routes
+  const executeCaptureJob = async (selectedRoutes?: DiscoveredRoute[]) => {
     if (!activeTab || !activeTab.isInjectable) return;
     setIsStartingExport(true);
     setExportError(null);
@@ -160,7 +167,8 @@ export const App: React.FC = () => {
           userOptions: {
             profileId: activeProfile?.id,
             viewportWidth: activeProfile?.viewportWidth,
-            viewportHeight: activeProfile?.viewportHeight
+            viewportHeight: activeProfile?.viewportHeight,
+            selectedUrls: selectedRoutes?.map((r) => r.canonicalUrl)
           }
         },
         timestamp: Date.now()
@@ -177,6 +185,39 @@ export const App: React.FC = () => {
     } finally {
       setIsStartingExport(false);
     }
+  };
+
+  // Handle Export Initiation
+  const handleStartExport = async () => {
+    if (!activeTab || !activeTab.isInjectable) return;
+
+    const isMultiPageMode =
+      selectedMode === 'selected-pages' ||
+      selectedMode === 'odd-pages' ||
+      selectedMode === 'even-pages' ||
+      selectedMode === 'entire-site';
+
+    if (isMultiPageMode && !showRouteReview) {
+      setIsDiscoveringRoutes(true);
+      setExportError(null);
+      try {
+        const discovery = await discoverSiteRoutes(document, {
+          baseUrl: activeTab.url,
+          currentUrl: activeTab.url,
+          currentTitle: activeTab.title,
+          maxDepth: 1
+        });
+        setCandidateRoutes(discovery.routes);
+        setShowRouteReview(true);
+      } catch (err) {
+        setExportError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setIsDiscoveringRoutes(false);
+      }
+      return;
+    }
+
+    await executeCaptureJob();
   };
 
   // Handle Job Cancellation
@@ -304,6 +345,16 @@ export const App: React.FC = () => {
           <JobProgressView
             job={activeJob}
             onCancelJob={handleCancelJob}
+          />
+        ) : showRouteReview && candidateRoutes.length > 0 ? (
+          <RouteReview
+            initialRoutes={candidateRoutes}
+            baseUrl={activeTab?.url ?? ''}
+            onStartExport={(selectedRoutes) => {
+              setShowRouteReview(false);
+              void executeCaptureJob(selectedRoutes);
+            }}
+            isExporting={isStartingExport}
           />
         ) : (
           <>

@@ -281,9 +281,9 @@ export const RouteReview: React.FC<RouteReviewProps> = ({
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap'
                       }}
-                      title={route.title || route.pathname}
+                      title={route.title || route.navigationLabel || route.pathname}
                     >
-                      {route.title || route.pathname}
+                      {route.title || route.navigationLabel || route.pathname}
                     </span>
                     {route.paginationNumber !== null && (
                       <span

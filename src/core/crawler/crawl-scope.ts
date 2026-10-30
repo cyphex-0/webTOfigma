@@ -210,7 +210,7 @@ export async function discoverSiteRoutes(
       canonicalUrl,
       originalUrl: rawUrl,
       pathname,
-      title: extra?.title,
+      title: extra?.title || extra?.navigationLabel,
       navigationLabel: extra?.navigationLabel,
       discoverySource: source,
       depth,
