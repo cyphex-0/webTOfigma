@@ -181,6 +181,18 @@ if (typeof globalThis !== 'undefined') {
     return Promise.resolve(res);
   };
 
+  // Mock PointerEvent if not present in jsdom
+  if (typeof (g as any).PointerEvent === 'undefined') {
+    class MockPointerEvent extends MouseEvent {
+      readonly pointerId: number;
+      constructor(type: string, params: any = {}) {
+        super(type, params);
+        this.pointerId = params.pointerId ?? 1;
+      }
+    }
+    (g as any).PointerEvent = MockPointerEvent;
+  }
+
   // Mock standard ClipboardItem if not available in Node/jsdom test runtime
   if (typeof g.ClipboardItem === 'undefined') {
     class MockClipboardItem {
