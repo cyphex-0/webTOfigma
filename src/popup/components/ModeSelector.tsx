@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import type { ExportMode } from '../../shared/contracts/export-job';
 
 export interface ModeOption {
@@ -112,6 +112,36 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
   onSelectMode,
   disabled = false
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
+    if (disabled) return;
+    let nextIndex = index;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      nextIndex = (index + 1) % EXPORT_MODES.length;
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      nextIndex = (index - 1 + EXPORT_MODES.length) % EXPORT_MODES.length;
+    } else if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      const current = EXPORT_MODES[index];
+      if (current) onSelectMode(current.id);
+      return;
+    } else {
+      return;
+    }
+
+    const nextMode = EXPORT_MODES[nextIndex];
+    if (nextMode) {
+      onSelectMode(nextMode.id);
+      if (containerRef.current) {
+        const buttons = containerRef.current.querySelectorAll<HTMLButtonElement>('.mode-card');
+        buttons[nextIndex]?.focus();
+      }
+    }
+  };
+
   return (
     <div className="mode-selector-section">
       <div className="section-label-row">
@@ -122,21 +152,24 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
       </div>
 
       <div
+        ref={containerRef}
         className="mode-grid"
         role="radiogroup"
         aria-labelledby="mode-selector-label"
       >
-        {EXPORT_MODES.map((mode) => {
+        {EXPORT_MODES.map((mode, idx) => {
           const isSelected = selectedMode === mode.id;
           return (
             <button
               key={mode.id}
               type="button"
               role="radio"
+              tabIndex={isSelected ? 0 : -1}
               aria-checked={isSelected}
               disabled={disabled}
               className={`mode-card ${isSelected ? 'selected' : ''}`}
               onClick={() => onSelectMode(mode.id)}
+              onKeyDown={(e) => handleKeyDown(e, idx)}
             >
               <div className="mode-card-header">
                 <div className="mode-icon-wrap" aria-hidden="true">
