@@ -21,8 +21,8 @@
 }
 
 body {
-  width: 360px;
-  min-height: 480px;
+  width: 370px;
+  min-height: 520px;
   font-family: var(--font-family);
   background-color: var(--bg-primary);
   color: var(--text-primary);
@@ -78,6 +78,201 @@ body {
   background-color: var(--accent-badge);
   padding: 2px 8px;
   border-radius: 12px;
+}
+
+/* Runtime Card */
+.runtime-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.phase-badge {
+  font-size: 10px;
+  font-weight: 700;
+  background-color: var(--figma-blue);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tab-loading,
+.tab-empty {
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding: 4px 0;
+}
+
+.tab-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tab-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tab-title {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.inject-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.badge-ok {
+  background-color: var(--success-bg);
+  color: var(--success-green);
+  border: 1px solid #a7f3d0;
+}
+
+.badge-restricted {
+  background-color: var(--error-bg);
+  color: var(--error-red);
+  border: 1px solid #fecaca;
+}
+
+.tab-url {
+  font-family: monospace;
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.restriction-reason {
+  font-size: 11px;
+  color: #991b1b;
+  background: var(--error-bg);
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.runtime-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.secondary-btn {
+  flex: 1;
+  padding: 6px 8px;
+  background-color: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.secondary-btn:hover:not(:disabled) {
+  border-color: var(--figma-blue);
+  color: var(--figma-blue);
+}
+
+.secondary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.status-note {
+  font-size: 11px;
+  color: var(--text-primary);
+  padding-top: 2px;
+}
+
+/* Job Monitor */
+.job-monitor {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.job-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.job-state-tag {
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--figma-blue);
+}
+
+.job-step {
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 6px;
+  background-color: var(--bg-secondary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--figma-blue), var(--figma-purple));
+  transition: width 0.2s ease;
+}
+
+.cancel-btn {
+  padding: 4px 8px;
+  font-size: 10px;
+  background-color: var(--error-bg);
+  border: 1px solid #fecaca;
+  color: var(--error-red);
+  border-radius: 4px;
+  cursor: pointer;
+  align-self: flex-end;
 }
 
 /* POC Card */
@@ -211,30 +406,6 @@ body {
   background-color: var(--error-bg);
   border: 1px solid #fecaca;
   color: #991b1b;
-}
-
-.gate-guide {
-  background-color: #ffffff;
-  border: 1px dashed var(--border-color);
-  border-radius: 6px;
-  padding: 8px 10px;
-  font-size: 11px;
-}
-
-.guide-title {
-  font-weight: 600;
-  color: var(--text-primary);
-  display: block;
-  margin-bottom: 4px;
-}
-
-.gate-guide ul {
-  padding-left: 18px;
-  color: var(--text-secondary);
-}
-
-.gate-guide li {
-  margin-bottom: 2px;
 }
 
 /* Diagnostic Section */
