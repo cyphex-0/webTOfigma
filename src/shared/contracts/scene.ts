@@ -13,7 +13,7 @@ export type SceneNodeType =
   | 'GROUP';
 
 export interface ScenePaint {
-  type: 'SOLID' | 'GRADIENT_LINEAR' | 'GRADIENT_RADIAL' | 'IMAGE';
+  type: 'SOLID' | 'GRADIENT_LINEAR' | 'GRADIENT_RADIAL' | 'GRADIENT_ANGULAR' | 'IMAGE';
   color?: {
     r: number;
     g: number;
@@ -23,6 +23,11 @@ export interface ScenePaint {
   opacity: number;
   visible: boolean;
   imageRef?: string | undefined;
+  gradientStops?: Array<{
+    position: number;
+    color: { r: number; g: number; b: number; a: number };
+  }> | undefined;
+  gradientTransform?: [[number, number, number], [number, number, number]] | undefined;
 }
 
 export interface SceneStroke {
@@ -38,7 +43,7 @@ export interface SceneStroke {
 }
 
 export interface SceneEffect {
-  type: 'DROP_SHADOW' | 'INNER_SHADOW' | 'LAYER_BLUR';
+  type: 'DROP_SHADOW' | 'INNER_SHADOW' | 'LAYER_BLUR' | 'BACKGROUND_BLUR';
   color?: {
     r: number;
     g: number;
@@ -67,6 +72,13 @@ export interface SceneNode {
   height: number;
   rotation: number;
   cornerRadius?: number | undefined;
+  cornerRadii?: [number, number, number, number] | undefined;
+  strokeWeights?: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  } | undefined;
   fills: ScenePaint[];
   strokes: SceneStroke[];
   effects: SceneEffect[];

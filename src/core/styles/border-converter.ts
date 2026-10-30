@@ -31,7 +31,7 @@ export interface ConvertedBorders {
 /**
  * Parses a length string in px, thin/medium/thick, or numeric value.
  */
-export function parseLengthPx(val: string | undefined): number {
+export function parseLengthPx(val: string | undefined, allowNegative = false): number {
   if (!val) return 0;
   const clean = val.trim().toLowerCase();
   if (clean === 'thin') return 1;
@@ -39,10 +39,12 @@ export function parseLengthPx(val: string | undefined): number {
   if (clean === 'thick') return 5;
   if (clean.endsWith('px')) {
     const num = parseFloat(clean.slice(0, -2));
-    return isNaN(num) ? 0 : Math.max(0, num);
+    if (isNaN(num)) return 0;
+    return allowNegative ? num : Math.max(0, num);
   }
   const num = parseFloat(clean);
-  return isNaN(num) ? 0 : Math.max(0, num);
+  if (isNaN(num)) return 0;
+  return allowNegative ? num : Math.max(0, num);
 }
 
 /**
