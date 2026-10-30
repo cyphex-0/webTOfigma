@@ -76,6 +76,22 @@ export interface SceneTextData {
   rawVariationSettings?: Record<string, number> | string | undefined;
 }
 
+export interface SceneLayoutMetadata {
+  layoutMode: 'NONE' | 'HORIZONTAL' | 'VERTICAL';
+  primaryAxisAlign?: 'MIN' | 'CENTER' | 'MAX' | 'SPACE_BETWEEN' | undefined;
+  counterAxisAlign?: 'MIN' | 'CENTER' | 'MAX' | undefined;
+  itemSpacing?: number | undefined;
+  padding?: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  } | undefined;
+  layoutSizingHorizontal?: 'FIXED' | 'HUG' | 'FILL' | undefined;
+  layoutSizingVertical?: 'FIXED' | 'HUG' | 'FILL' | undefined;
+  decisionRecord?: 'auto-layout-exact' | 'auto-layout-approximate' | 'positioned-fallback' | undefined;
+}
+
 export interface SceneNode {
   id: string;
   parentId: string | null;
@@ -101,18 +117,7 @@ export interface SceneNode {
   effects: SceneEffect[];
   clipsContent: boolean;
   textData?: SceneTextData | undefined;
-  layoutMetadata?: {
-    layoutMode: 'NONE' | 'HORIZONTAL' | 'VERTICAL';
-    primaryAxisAlign: 'MIN' | 'CENTER' | 'MAX' | 'SPACE_BETWEEN';
-    counterAxisAlign: 'MIN' | 'CENTER' | 'MAX';
-    itemSpacing: number;
-    padding: {
-      top: number;
-      right: number;
-      bottom: number;
-      left: number;
-    };
-  } | undefined;
+  layoutMetadata?: SceneLayoutMetadata | undefined;
 }
 
 export interface FigmaSceneDocument {
