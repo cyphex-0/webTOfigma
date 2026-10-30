@@ -5,7 +5,13 @@
   "description": "Local-first cross-browser extension to capture websites and export them directly to Figma via clipboard",
   "permissions": [
     "activeTab",
-    "storage"
+    "scripting",
+    "storage",
+    "clipboardWrite"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
   ],
   "action": {
     "default_popup": "popup.html",
