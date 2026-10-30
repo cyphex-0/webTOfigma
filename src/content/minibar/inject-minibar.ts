@@ -1,10 +1,14 @@
 /**
  * In-Page Minibar Host Injector & Shadow DOM Isolator.
- * Creates an isolated container adhering to CSS isolation standards (all: initial !important)
- * and marks the host element with data-w2f-exclude="true" for DOM extraction pruning.
+ * Creates an isolated container adhering to CSS isolation standards (all: initial !important),
+ * attaches open Shadow DOM, injects minibar styling, and mounts MinibarApp with React 18 createRoot.
  */
 
+import React from 'react';
+import { createRoot } from 'react-dom/client';
 import { MINIBAR_HOST_ID, teardownMinibar, registerMinibarCleanup } from './teardown';
+import { MinibarApp } from './MinibarApp';
+import minibarCss from './minibar.css?inline';
 
 export const MINIBAR_ROOT_ID = 'minibar-root';
 
@@ -79,10 +83,10 @@ export function injectMinibarHost(): MinibarMountResult {
   // 3. Attach open Shadow DOM
   const shadow = host.attachShadow({ mode: 'open' });
 
-  // 4. Inject base isolation styles
+  // 4. Inject base isolation styles + minibar scoped CSS
   const styleEl = document.createElement('style');
   styleEl.id = 'w2f-isolation-style';
-  styleEl.textContent = ISOLATION_CSS;
+  styleEl.textContent = `${ISOLATION_CSS}\n${minibarCss || ''}`;
   shadow.appendChild(styleEl);
 
   // 5. Create container for React rendering
@@ -100,4 +104,35 @@ export function injectMinibarHost(): MinibarMountResult {
     container,
     alreadyExisted: false
   };
+}
+
+/**
+ * High-level entry point to inject and mount the MinibarApp.
+ */
+export function mountMinibar(): void {
+  const mount = injectMinibarHost();
+  if (mount.alreadyExisted) {
+    return;
+  }
+
+  const root = createRoot(mount.container);
+  root.render(React.createElement(MinibarApp, { hostElement: mount.host }));
+
+  registerMinibarCleanup(() => {
+    root.unmount();
+  });
+}
+
+/**
+ * Toggles minibar visibility in the active page.
+ */
+export function toggleMinibar(): boolean {
+  const existing = document.getElementById(MINIBAR_HOST_ID);
+  if (existing) {
+    teardownMinibar();
+    return false;
+  } else {
+    mountMinibar();
+    return true;
+  }
 }
