@@ -5,12 +5,16 @@ export interface HeaderProps {
   hostname?: string | undefined;
   isInjectable?: boolean | undefined;
   onOpenHelp?: () => void;
+  onToggleMinibar?: () => void;
+  isMinibarActive?: boolean | undefined;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   hostname,
   isInjectable = true,
-  onOpenHelp
+  onOpenHelp,
+  onToggleMinibar,
+  isMinibarActive = false
 }) => {
   const browserTarget = getBrowserTargetName();
 
@@ -65,6 +69,21 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="status-dot" aria-hidden="true" />
             <span className="domain-text">{hostname}</span>
           </span>
+        )}
+
+        {onToggleMinibar && isInjectable && (
+          <button
+            type="button"
+            className={`header-icon-btn ${isMinibarActive ? 'minibar-active-indicator' : ''}`}
+            onClick={onToggleMinibar}
+            title={isMinibarActive ? 'Hide In-Page Minibar' : 'Show In-Page Minibar on this tab'}
+            aria-label="Toggle In-Page Minibar"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="2" y="6" width="20" height="12" rx="3" />
+              <line x1="6" y1="12" x2="18" y2="12" />
+            </svg>
+          </button>
         )}
 
         <button

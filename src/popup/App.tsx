@@ -16,6 +16,7 @@ import type {
   GetActiveTabContextResponse,
   InjectContentScriptResponse,
   StartCaptureResponse,
+  ToggleMinibarResponse,
   JobRecord,
   MessageResponse
 } from '../shared/contracts/messages';
@@ -45,6 +46,7 @@ export const App: React.FC = () => {
 
   // Help Modal State
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
+  const [isMinibarActive, setIsMinibarActive] = useState<boolean>(false);
 
   // Phase 1 PoC Verification Accordion State
   const [showPocSection, setShowPocSection] = useState<boolean>(false);
@@ -193,6 +195,25 @@ export const App: React.FC = () => {
     }
   };
 
+  // Handle In-Page Minibar Toggle
+  const handleToggleMinibar = async () => {
+    if (!activeTab || !activeTab.isInjectable) return;
+    try {
+      const res = (await browser.runtime.sendMessage({
+        id: `toggle_mini_${Date.now()}`,
+        type: 'TOGGLE_MINIBAR',
+        payload: { tabId: activeTab.tabId },
+        timestamp: Date.now()
+      })) as MessageResponse<ToggleMinibarResponse>;
+
+      if (res && res.success && res.payload) {
+        setIsMinibarActive(res.payload.active);
+      }
+    } catch (err) {
+      console.error('[WebToFigma] Failed to toggle minibar from popup:', err);
+    }
+  };
+
   // Handle Copy to Figma for ready-to-copy job
   const handleCopyToFigma = async (): Promise<{ success: boolean; bytesWritten?: number; error?: string }> => {
     try {
@@ -262,6 +283,8 @@ export const App: React.FC = () => {
         hostname={activeTab?.url ? new URL(activeTab.url).hostname : undefined}
         isInjectable={activeTab?.isInjectable}
         onOpenHelp={() => setIsHelpOpen(true)}
+        onToggleMinibar={handleToggleMinibar}
+        isMinibarActive={isMinibarActive}
       />
 
       <main className="popup-content">

@@ -70,15 +70,26 @@ export const InjectContentScriptRequestSchema = z.object({
 });
 
 export const StartCaptureRequestSchema = z.object({
-  tabId: z.number().int().positive(),
-  mode: z.enum(['single-page', 'multi-page']),
+  tabId: z.number().int().positive().optional(),
+  mode: z.enum([
+    'single-page',
+    'multi-page',
+    'viewport',
+    'full-page',
+    'select-element',
+    'selected-pages',
+    'odd-pages',
+    'even-pages',
+    'entire-site'
+  ]),
   options: z
     .object({
       maxDepth: z.number().int().min(1).max(10).optional(),
       captureImages: z.boolean().optional(),
       includeShadowDom: z.boolean().optional()
     })
-    .optional()
+    .optional(),
+  userOptions: z.record(z.unknown()).optional()
 });
 
 export const CancelJobRequestSchema = z.object({
@@ -97,6 +108,14 @@ export const RequestOriginPermissionRequestSchema = z.object({
 
 export const PingRequestSchema = z.object({
   timestamp: z.number().optional()
+});
+
+export const ToggleMinibarRequestSchema = z.object({
+  tabId: z.number().int().positive().optional()
+});
+
+export const TeardownMinibarRequestSchema = z.object({
+  tabId: z.number().int().positive().optional()
 });
 
 // -------------------------------------------------------------

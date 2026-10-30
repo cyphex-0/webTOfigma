@@ -140,6 +140,12 @@ body {
   color: var(--text-primary);
 }
 
+.header-icon-btn.minibar-active-indicator {
+  background-color: #dbeafe;
+  color: #2563eb;
+  border-color: #93c5fd;
+}
+
 /* Main Content Area */
 .popup-content {
   flex: 1;

@@ -151,6 +151,25 @@ export interface PingResponse {
 }
 
 // -------------------------------------------------------------
+// 8. MINIBAR CONTROLS
+// -------------------------------------------------------------
+export interface ToggleMinibarRequest {
+  tabId?: number | undefined;
+}
+
+export interface ToggleMinibarResponse {
+  active: boolean;
+}
+
+export interface TeardownMinibarRequest {
+  tabId?: number | undefined;
+}
+
+export interface TeardownMinibarResponse {
+  active: boolean;
+}
+
+// -------------------------------------------------------------
 // Streaming Port Contracts (connect name: 'STREAM_SNAPSHOT')
 // -------------------------------------------------------------
 export interface PageSnapshotChunk {

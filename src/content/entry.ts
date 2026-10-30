@@ -6,6 +6,8 @@
  */
 
 import { browser } from '../shared/browser/browser-api';
+import { toggleMinibar, mountMinibar } from './minibar/inject-minibar';
+import { teardownMinibar, isMinibarInjected } from './minibar/teardown';
 import type {
   PortHeartbeatPing,
   PortHeartbeatPong,
@@ -155,8 +157,30 @@ browser.runtime.onMessage.addListener((message: unknown) => {
         timestamp: Date.now()
       });
     }
+
+    if (msg.type === 'TOGGLE_MINIBAR') {
+      const active = toggleMinibar();
+      return Promise.resolve({ active });
+    }
+
+    if (msg.type === 'TEARDOWN_MINIBAR') {
+      teardownMinibar();
+      return Promise.resolve({ active: false });
+    }
+
+    if (msg.type === 'IS_MINIBAR_ACTIVE') {
+      return Promise.resolve({ active: isMinibarInjected() });
+    }
   }
   return undefined;
 });
 
-console.log('[WebToFigma] Content script loaded with streaming transport & keepalive.');
+// Clean teardown upon navigation / page unload
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    teardownMinibar();
+    streamClient.disconnect();
+  });
+}
+
+console.log('[WebToFigma] Content script loaded with streaming transport, keepalive & minibar.');

@@ -30,6 +30,8 @@ import type {
   RequestOriginPermissionRequest,
   RequestOriginPermissionResponse,
   PingResponse,
+  ToggleMinibarResponse,
+  TeardownMinibarResponse,
   PortStreamMessage,
   PageSnapshotChunk,
   SnapshotAck,
@@ -52,7 +54,8 @@ const chunkBuffers: Map<string, Map<number, string>> = new Map();
  * Dispatches one-off runtime messages based on type.
  */
 export async function handleRuntimeMessage(
-  message: unknown
+  message: unknown,
+  sender?: Runtime.MessageSender
 ): Promise<MessageResponse> {
   // If not an envelope, handle legacy ping or return error
   if (!message || typeof message !== 'object') {
@@ -126,12 +129,24 @@ export async function handleRuntimeMessage(
 
       // 3. Start Capture
       case 'START_CAPTURE': {
-        const parseResult = StartCaptureRequestSchema.safeParse(envelope.payload);
+        const rawPayload = (envelope.payload ?? {}) as Record<string, unknown>;
+        let targetTabId = typeof rawPayload.tabId === 'number' ? rawPayload.tabId : undefined;
+        if (!targetTabId && sender?.tab?.id) {
+          targetTabId = sender.tab.id;
+        }
+        if (!targetTabId) {
+          const activeTabs = await browser.tabs.query({ active: true, currentWindow: true });
+          if (activeTabs[0]?.id) {
+            targetTabId = activeTabs[0].id;
+          }
+        }
+        const payloadWithTab = { ...rawPayload, tabId: targetTabId };
+        const parseResult = StartCaptureRequestSchema.safeParse(payloadWithTab);
         if (!parseResult.success) {
           throw new InvalidPayloadError(parseResult.error.message);
         }
 
-        const { tabId, mode } = parseResult.data as StartCaptureRequest;
+        const { tabId, mode } = parseResult.data as { tabId: number; mode: 'single-page' | 'multi-page' };
         const tab = await browser.tabs.get(tabId);
         const injectCheck = isInjectableUrl(tab.url);
         if (!injectCheck.injectable) {
@@ -201,6 +216,69 @@ export async function handleRuntimeMessage(
           version: '0.1.0'
         };
         return { id: requestId, success: true, payload: resp };
+      }
+
+      // 8. Toggle In-Page Minibar
+      case 'TOGGLE_MINIBAR': {
+        const rawPayload = (envelope.payload ?? {}) as { tabId?: number };
+        let tabId = rawPayload.tabId;
+        if (!tabId && sender?.tab?.id) {
+          tabId = sender.tab.id;
+        }
+        if (!tabId) {
+          const activeTabs = await browser.tabs.query({ active: true, currentWindow: true });
+          tabId = activeTabs[0]?.id;
+        }
+        if (!tabId) {
+          throw new InvalidPayloadError('No target tab found for minibar toggle');
+        }
+
+        try {
+          const res = (await browser.tabs.sendMessage(tabId, {
+            type: 'TOGGLE_MINIBAR'
+          })) as ToggleMinibarResponse;
+          return { id: requestId, success: true, payload: res };
+        } catch {
+          // If content script was not yet injected into this tab, inject it then toggle
+          try {
+            await browser.scripting.executeScript({
+              target: { tabId },
+              files: ['content.js']
+            });
+            const res = (await browser.tabs.sendMessage(tabId, {
+              type: 'TOGGLE_MINIBAR'
+            })) as ToggleMinibarResponse;
+            return { id: requestId, success: true, payload: res };
+          } catch (injectErr: unknown) {
+            const msg = injectErr instanceof Error ? injectErr.message : String(injectErr);
+            throw new ScriptInjectionError(tabId, msg);
+          }
+        }
+      }
+
+      // 9. Teardown In-Page Minibar
+      case 'TEARDOWN_MINIBAR': {
+        const rawPayload = (envelope.payload ?? {}) as { tabId?: number };
+        let tabId = rawPayload.tabId;
+        if (!tabId && sender?.tab?.id) {
+          tabId = sender.tab.id;
+        }
+        if (!tabId) {
+          const activeTabs = await browser.tabs.query({ active: true, currentWindow: true });
+          tabId = activeTabs[0]?.id;
+        }
+        if (!tabId) {
+          return { id: requestId, success: true, payload: { active: false } as TeardownMinibarResponse };
+        }
+
+        try {
+          const res = (await browser.tabs.sendMessage(tabId, {
+            type: 'TEARDOWN_MINIBAR'
+          })) as TeardownMinibarResponse;
+          return { id: requestId, success: true, payload: res };
+        } catch {
+          return { id: requestId, success: true, payload: { active: false } as TeardownMinibarResponse };
+        }
       }
 
       default:
@@ -300,8 +378,8 @@ export function handlePortConnection(port: Runtime.Port): void {
  * Registers background listeners synchronously upon script evaluation.
  */
 export function registerMessageListeners(): void {
-  browser.runtime.onMessage.addListener((message: unknown) => {
-    return handleRuntimeMessage(message);
+  browser.runtime.onMessage.addListener((message: unknown, sender: Runtime.MessageSender) => {
+    return handleRuntimeMessage(message, sender);
   });
 
   browser.runtime.onConnect.addListener((port: Runtime.Port) => {
