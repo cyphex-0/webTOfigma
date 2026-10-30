@@ -61,20 +61,44 @@ export function calculateGeometry(
   const isSticky = position === 'sticky';
   const isFixedOrSticky = isFixed || isSticky;
 
+  let rectLeft = clientRect.left;
+  let rectTop = clientRect.top;
+  let rectWidth = clientRect.width;
+  let rectHeight = clientRect.height;
+
+  // Headless / JSDOM fallback for measuring elements where layout rendering is simulated
+  if (rectWidth === 0 && rectHeight === 0) {
+    const inlineStyle = (el as HTMLElement).style;
+    if (inlineStyle) {
+      const w = parseFloat(inlineStyle.width);
+      const h = parseFloat(inlineStyle.height);
+      if (Number.isFinite(w) && w > 0) rectWidth = w;
+      if (Number.isFinite(h) && h > 0) rectHeight = h;
+    }
+
+    if (rectWidth === 0 && typeof window !== 'undefined' && window.getComputedStyle) {
+      const s = window.getComputedStyle(el);
+      const w = parseFloat(s.width);
+      const h = parseFloat(s.height);
+      if (Number.isFinite(w) && w > 0) rectWidth = w;
+      if (Number.isFinite(h) && h > 0) rectHeight = h;
+    }
+  }
+
   const sourceRect = normalizeRect(
-    clientRect.left,
-    clientRect.top,
-    clientRect.width,
-    clientRect.height
+    rectLeft,
+    rectTop,
+    rectWidth,
+    rectHeight
   );
 
   // For ordinary in-flow or absolute elements, document coordinates incorporate current scroll offset.
   // For fixed elements, document coordinates at capture snapshot time reflect their current page position.
   const documentRect = normalizeRect(
-    clientRect.left + scrollX,
-    clientRect.top + scrollY,
-    clientRect.width,
-    clientRect.height
+    rectLeft + scrollX,
+    rectTop + scrollY,
+    rectWidth,
+    rectHeight
   );
 
   return {

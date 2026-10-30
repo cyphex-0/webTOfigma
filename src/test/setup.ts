@@ -214,4 +214,34 @@ if (typeof globalThis !== 'undefined') {
     }
     g.ClipboardItem = MockClipboardItem;
   }
+
+  // Patch window.getComputedStyle in JSDOM to support pseudoElt gracefully
+  if (typeof window !== 'undefined' && window.getComputedStyle) {
+    const origGetComputedStyle = window.getComputedStyle;
+    window.getComputedStyle = function (elt: Element, pseudoElt?: string | null) {
+      if (pseudoElt) {
+        return {
+          content: 'none',
+          display: 'none',
+          backgroundColor: 'transparent',
+          color: '#000000',
+          fontSize: '16px',
+          fontWeight: '400',
+          lineHeight: 'normal',
+          letterSpacing: 'normal',
+          textAlign: 'left',
+          borderRadius: '0px',
+          borderWidth: '0px',
+          borderColor: 'transparent',
+          borderStyle: 'none',
+          boxShadow: 'none',
+          transform: 'none',
+          padding: '0px',
+          margin: '0px',
+          getPropertyValue: () => ''
+        } as any;
+      }
+      return origGetComputedStyle.call(window, elt);
+    };
+  }
 }

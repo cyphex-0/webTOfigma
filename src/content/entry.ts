@@ -8,6 +8,7 @@
 import { browser } from '../shared/browser/browser-api';
 import { toggleMinibar, mountMinibar } from './minibar/inject-minibar';
 import { teardownMinibar, isMinibarInjected } from './minibar/teardown';
+import { DOMWalker } from '../core/dom/dom-walker';
 import type {
   PortHeartbeatPing,
   PortHeartbeatPong,
@@ -170,6 +171,18 @@ browser.runtime.onMessage.addListener((message: unknown) => {
 
     if (msg.type === 'IS_MINIBAR_ACTIVE') {
       return Promise.resolve({ active: isMinibarInjected() });
+    }
+
+    if (msg.type === 'EXTRACT_DOM_SNAPSHOT') {
+      const payload = (msg as any).payload || {};
+      const walker = new DOMWalker({
+        maxNodeCount: payload.maxNodeCount,
+        maxDepth: payload.maxDepth,
+        resolvePaintOrder: payload.resolvePaintOrder ?? true,
+        captureMode: payload.captureMode ?? 'full-page'
+      });
+      const result = walker.walk();
+      return Promise.resolve(result);
     }
   }
   return undefined;

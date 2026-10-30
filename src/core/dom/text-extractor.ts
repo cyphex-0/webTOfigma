@@ -107,6 +107,12 @@ export function extractDirectText(
   el: Element,
   style?: CSSStyleDeclaration | Record<string, string>
 ): string {
+  // Privacy Guard: Never extract direct text runs from form input fields or textareas
+  const tag = el.tagName.toUpperCase();
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+    return '';
+  }
+
   const childNodes = el.childNodes;
   if (!childNodes || childNodes.length === 0) return '';
 
