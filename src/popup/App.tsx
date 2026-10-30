@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { browser, getBrowserTargetName } from '../shared/browser/browser-api';
-import {
-  prepareClipboardPayload,
-  writePreparedClipboardPayload,
-  type PreparedClipboardPayload
-} from '../core/figma/poc/clipboard-poc';
-import { POC_FIXTURES } from '../core/figma/poc/fixtures';
+import { Header } from './components/Header';
+import { TabStatusBanner } from './components/TabStatusBanner';
+import { ModeSelector } from './components/ModeSelector';
+import { ProfileBadge } from './components/ProfileBadge';
+import { ActionControls } from './components/ActionControls';
+import { settingsStore } from '../core/settings/settings-store';
+import type { ExportMode } from '../shared/contracts/export-job';
+import type { CaptureProfile, ExtensionSettings } from '../shared/contracts/settings';
 import type {
   ActiveTabContext,
   GetActiveTabContextResponse,
@@ -14,29 +16,66 @@ import type {
   JobRecord,
   MessageResponse
 } from '../shared/contracts/messages';
+import {
+  prepareClipboardPayload,
+  writePreparedClipboardPayload,
+  type PreparedClipboardPayload
+} from '../core/figma/poc/clipboard-poc';
+import { POC_FIXTURES } from '../core/figma/poc/fixtures';
 
 export const App: React.FC = () => {
   const targetName = getBrowserTargetName();
 
-  // Tab & Runtime State
+  // Settings & Profile State
+  const [settings, setSettings] = useState<ExtensionSettings | null>(null);
+  const [activeProfile, setActiveProfile] = useState<CaptureProfile | null>(null);
+  const [selectedMode, setSelectedMode] = useState<ExportMode>('full-page');
+
+  // Active Tab & Permission State
   const [activeTab, setActiveTab] = useState<ActiveTabContext | null>(null);
   const [tabLoading, setTabLoading] = useState<boolean>(true);
-  const [injectStatus, setInjectStatus] = useState<string | null>(null);
-  const [activeJob, setActiveJob] = useState<JobRecord | null>(null);
 
-  // Phase 1 PoC State
+  // Active Job Execution State
+  const [activeJob, setActiveJob] = useState<JobRecord | null>(null);
+  const [isStartingExport, setIsStartingExport] = useState<boolean>(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  // Phase 1 PoC Verification Accordion State
+  const [showPocSection, setShowPocSection] = useState<boolean>(false);
   const [selectedFixtureId, setSelectedFixtureId] = useState<string>('nested-card');
   const [preparedPayload, setPreparedPayload] = useState<PreparedClipboardPayload | null>(null);
-  const [isPreparing, setIsPreparing] = useState<boolean>(false);
-  const [copyFeedback, setCopyFeedback] = useState<{
-    success: boolean;
-    message: string;
-  } | null>(null);
+  const [isPreparingPoc, setIsPreparingPoc] = useState<boolean>(false);
+  const [pocFeedback, setPocFeedback] = useState<{ success: boolean; message: string } | null>(null);
 
-  // Background Ping State
-  const [pingResult, setPingResult] = useState<string | null>(null);
+  // Load Settings & Subscribe to Cross-Context Storage Changes
+  useEffect(() => {
+    let isMounted = true;
 
-  // Fetch active tab context from background
+    async function initSettings() {
+      const loaded = await settingsStore.load();
+      if (!isMounted) return;
+      setSettings(loaded);
+      setSelectedMode(loaded.defaultMode as ExportMode);
+      const profile = await settingsStore.getActiveProfile();
+      if (!isMounted) return;
+      setActiveProfile(profile);
+    }
+
+    void initSettings();
+
+    const unsubscribe = settingsStore.subscribe((updated) => {
+      setSettings(updated);
+      setSelectedMode(updated.defaultMode as ExportMode);
+      void settingsStore.getActiveProfile().then((p) => setActiveProfile(p));
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  // Fetch active tab context
   const fetchActiveTabContext = useCallback(async () => {
     setTabLoading(true);
     try {
@@ -59,7 +98,7 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Fetch active job status from background
+  // Fetch active job status
   const fetchActiveJob = useCallback(async () => {
     try {
       const response = (await browser.runtime.sendMessage({
@@ -84,284 +123,246 @@ export const App: React.FC = () => {
     void fetchActiveJob();
   }, [fetchActiveTabContext, fetchActiveJob]);
 
-  // Precompute Phase 1 clipboard payload ahead of click
-  const precompute = useCallback(async (fixtureId: string) => {
-    setIsPreparing(true);
-    setCopyFeedback(null);
-    try {
-      const prepared = await prepareClipboardPayload(fixtureId);
-      setPreparedPayload(prepared);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setCopyFeedback({ success: false, message: `Precomputation failed: ${msg}` });
-    } finally {
-      setIsPreparing(false);
-    }
-  }, []);
+  // Handle Export Initiation
+  const handleStartExport = async () => {
+    if (!activeTab || !activeTab.isInjectable) return;
+    setIsStartingExport(true);
+    setExportError(null);
 
-  useEffect(() => {
-    void precompute(selectedFixtureId);
-  }, [selectedFixtureId, precompute]);
-
-  // Handle direct zero-I/O clipboard write
-  const handleCopy = async () => {
-    if (!preparedPayload) return;
     try {
-      await writePreparedClipboardPayload(preparedPayload);
-      setCopyFeedback({
-        success: true,
-        message: 'Payload copied! Switch to Figma and press Ctrl+V (or Cmd+V).'
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setCopyFeedback({
-        success: false,
-        message: `Clipboard write error: ${msg}`
-      });
-    }
-  };
-
-  // Inject content script into active tab
-  const handleInjectScript = async () => {
-    if (!activeTab?.tabId) return;
-    setInjectStatus('Injecting content script...');
-    try {
-      const response = (await browser.runtime.sendMessage({
-        id: `req_${Date.now()}`,
+      // 1. Inject content script
+      const injectRes = (await browser.runtime.sendMessage({
+        id: `req_inj_${Date.now()}`,
         type: 'INJECT_CONTENT_SCRIPT',
         payload: { tabId: activeTab.tabId },
         timestamp: Date.now()
       })) as MessageResponse<InjectContentScriptResponse>;
 
-      if (response.success) {
-        setInjectStatus('✅ Content script injected successfully!');
-      } else {
-        setInjectStatus(`❌ Injection failed: ${response.error?.message ?? 'Unknown error'}`);
+      if (!injectRes.success) {
+        throw new Error(injectRes.error?.message ?? 'Failed to inject extraction scripts');
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setInjectStatus(`❌ Injection error: ${msg}`);
-    }
-  };
 
-  // Start test capture job
-  const handleStartCapture = async () => {
-    if (!activeTab?.tabId) return;
-    try {
-      const response = (await browser.runtime.sendMessage({
-        id: `req_${Date.now()}`,
+      // 2. Start capture job
+      const startRes = (await browser.runtime.sendMessage({
+        id: `req_cap_${Date.now()}`,
         type: 'START_CAPTURE',
-        payload: { tabId: activeTab.tabId, mode: 'single-page' },
+        payload: {
+          mode: selectedMode,
+          tabId: activeTab.tabId,
+          userOptions: {
+            profileId: activeProfile?.id,
+            viewportWidth: activeProfile?.viewportWidth,
+            viewportHeight: activeProfile?.viewportHeight
+          }
+        },
         timestamp: Date.now()
       })) as MessageResponse<StartCaptureResponse>;
 
-      if (response.success && response.payload?.job) {
-        setActiveJob(response.payload.job);
+      if (startRes.success && startRes.payload?.job) {
+        setActiveJob(startRes.payload.job);
+      } else {
+        throw new Error(startRes.error?.message ?? 'Capture initiation failed');
       }
-    } catch {
-      // Ignore
-    }
-  };
-
-  // Cancel active job
-  const handleCancelJob = async () => {
-    if (!activeJob?.jobId) return;
-    try {
-      const response = (await browser.runtime.sendMessage({
-        id: `req_${Date.now()}`,
-        type: 'CANCEL_JOB',
-        payload: { jobId: activeJob.jobId, reason: 'Cancelled by user' },
-        timestamp: Date.now()
-      })) as MessageResponse<{ job: JobRecord }>;
-
-      if (response.success && response.payload?.job) {
-        setActiveJob(response.payload.job);
-      }
-    } catch {
-      // Ignore
-    }
-  };
-
-  const handlePing = async () => {
-    try {
-      const response = (await browser.runtime.sendMessage({
-        id: `req_${Date.now()}`,
-        type: 'PING',
-        payload: {},
-        timestamp: Date.now()
-      })) as MessageResponse<{ pong: boolean; workerTime: number }>;
-
-      setPingResult(JSON.stringify(response));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to ping background';
-      setPingResult(`Error: ${msg}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      setExportError(msg);
+    } finally {
+      setIsStartingExport(false);
     }
   };
+
+  // Handle Job Cancellation
+  const handleCancelJob = async () => {
+    if (!activeJob) return;
+    try {
+      await browser.runtime.sendMessage({
+        id: `req_cancel_${Date.now()}`,
+        type: 'CANCEL_JOB',
+        payload: { jobId: activeJob.jobId },
+        timestamp: Date.now()
+      });
+      setActiveJob(null);
+    } catch (err) {
+      console.error('[WebToFigma] Error cancelling job:', err);
+    }
+  };
+
+  // Handle Requesting Tab Permissions
+  const handleRequestPermissions = async () => {
+    if (!activeTab) return;
+    try {
+      const origin = new URL(activeTab.url).origin + '/*';
+      const granted = await browser.permissions.request({
+        origins: [origin]
+      });
+      if (granted) {
+        await fetchActiveTabContext();
+      }
+    } catch (err) {
+      console.error('[WebToFigma] Permission request failed:', err);
+    }
+  };
+
+  // Phase 1 PoC Precompute
+  const handlePrecomputePoc = useCallback(async (fixtureId: string) => {
+    setIsPreparingPoc(true);
+    setPocFeedback(null);
+    try {
+      const prepared = await prepareClipboardPayload(fixtureId);
+      setPreparedPayload(prepared);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setPocFeedback({ success: false, message: `Precomputation failed: ${msg}` });
+    } finally {
+      setIsPreparingPoc(false);
+    }
+  }, []);
+
+  const handleCopyPoc = async () => {
+    if (!preparedPayload) return;
+    try {
+      await writePreparedClipboardPayload(preparedPayload);
+      setPocFeedback({
+        success: true,
+        message: `Copied to clipboard (${preparedPayload.htmlBytes} bytes)! Switch to Figma and press Ctrl+V.`
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setPocFeedback({ success: false, message: `Clipboard write error: ${msg}` });
+    }
+  };
+
+  // Disabled Reason Computation
+  const getDisabledReason = (): string | undefined => {
+    if (tabLoading) return 'Inspecting tab status...';
+    if (!activeTab) return 'No active browser tab found';
+    if (!activeTab.isInjectable) {
+      return 'Export is unavailable on browser internal pages (chrome://, about:), extension stores, and local PDFs.';
+    }
+    if (activeJob && (activeJob.state === 'capturing' || activeJob.state === 'processing')) {
+      return 'Another capture job is currently running.';
+    }
+    return undefined;
+  };
+
+  const isJobRunning = Boolean(
+    activeJob && (activeJob.state === 'capturing' || activeJob.state === 'processing' || activeJob.state === 'injecting')
+  );
 
   return (
     <div className="popup-container">
-      {/* Header */}
-      <div className="header">
-        <div className="title-area">
-          <div className="logo-badge">W</div>
-          <div className="title-text">
-            <h1>Web-to-Figma</h1>
-          </div>
-        </div>
-        <span className="target-badge">{targetName}</span>
-      </div>
+      <Header
+        hostname={activeTab?.url ? new URL(activeTab.url).hostname : undefined}
+        isInjectable={activeTab?.isInjectable}
+        onOpenHelp={() => {
+          if (typeof browser !== 'undefined' && browser.runtime?.openOptionsPage) {
+            void browser.runtime.openOptionsPage();
+          }
+        }}
+      />
 
-      {/* Phase 2: Tab Context & Injection Card */}
-      <div className="runtime-card">
-        <div className="card-header">
-          <span className="phase-badge">Phase 2 Runtime</span>
-          <span className="card-title">Active Tab Context</span>
-        </div>
+      <main className="popup-content">
+        <TabStatusBanner
+          activeTab={activeTab}
+          loading={tabLoading}
+        />
 
-        {tabLoading ? (
-          <div className="tab-loading">Reading active tab...</div>
-        ) : activeTab ? (
-          <div className="tab-info">
-            <div className="tab-title-row">
-              <span className="tab-title" title={activeTab.title}>
-                {activeTab.title}
-              </span>
-              <span
-                className={`inject-badge ${
-                  activeTab.isInjectable ? 'badge-ok' : 'badge-restricted'
-                }`}
-              >
-                {activeTab.isInjectable ? 'Injectable' : 'Restricted'}
-              </span>
-            </div>
-            <div className="tab-url" title={activeTab.url}>
-              {activeTab.url}
-            </div>
+        <ProfileBadge profile={activeProfile} />
 
-            {activeTab.restrictionReason && (
-              <div className="restriction-reason">
-                {activeTab.restrictionReason}
-              </div>
-            )}
+        <ModeSelector
+          selectedMode={selectedMode}
+          onSelectMode={setSelectedMode}
+          disabled={!activeTab?.isInjectable || isJobRunning}
+        />
 
-            <div className="runtime-actions">
-              <button
-                className="secondary-btn"
-                disabled={!activeTab.isInjectable}
-                onClick={handleInjectScript}
-              >
-                💉 Inject Content Script
-              </button>
-              <button
-                className="secondary-btn"
-                disabled={!activeTab.isInjectable}
-                onClick={handleStartCapture}
-              >
-                🚀 Start Capture Job
-              </button>
-            </div>
+        <ActionControls
+          selectedMode={selectedMode}
+          isInjectable={Boolean(activeTab?.isInjectable)}
+          isJobRunning={isJobRunning}
+          isLoading={isStartingExport}
+          onStartExport={handleStartExport}
+          onCancelJob={handleCancelJob}
+          disabledReason={getDisabledReason()}
+        />
 
-            {injectStatus && <div className="status-note">{injectStatus}</div>}
-          </div>
-        ) : (
-          <div className="tab-empty">No active tab detected</div>
-        )}
-
-        {/* Active Job Monitor */}
-        {activeJob && (
-          <div className="job-monitor">
-            <div className="job-meta-row">
-              <span className="job-state-tag">{activeJob.state}</span>
-              <span className="job-step">{activeJob.currentStep}</span>
-            </div>
-            <div className="progress-bar-container">
-              <div
-                className="progress-bar-fill"
-                style={{ width: `${activeJob.progressPercent}%` }}
-              />
-            </div>
-            {['capturing', 'processing', 'injecting'].includes(activeJob.state) && (
-              <button className="cancel-btn" onClick={handleCancelJob}>
-                Cancel Job
-              </button>
-            )}
+        {exportError && (
+          <div className="error-banner" role="alert">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>{exportError}</span>
           </div>
         )}
-      </div>
 
-      {/* Phase 1: Direct Clipboard PoC Tester */}
-      <div className="poc-card">
-        <div className="poc-header">
-          <span className="poc-badge">Phase 1 PoC</span>
-          <span className="poc-subtitle">Direct Clipboard Paste</span>
-        </div>
-
-        <div className="fixture-selector-group">
-          <label htmlFor="fixture-select" className="fixture-label">
-            Select Test Fixture:
-          </label>
-          <select
-            id="fixture-select"
-            className="fixture-select"
-            value={selectedFixtureId}
-            onChange={(e) => setSelectedFixtureId(e.target.value)}
+        {/* Phase 1 Clipboard Golden Verification Harness */}
+        <section className="poc-accordion">
+          <button
+            type="button"
+            className="poc-accordion-toggle"
+            onClick={() => setShowPocSection((prev) => !prev)}
+            aria-expanded={showPocSection}
           >
-            {Object.values(POC_FIXTURES).map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.title} ({f.nodeCount} nodes)
-              </option>
-            ))}
-          </select>
-        </div>
+            <span>Clipboard Wire Verification</span>
+            <span className="accordion-arrow">{showPocSection ? '▲' : '▼'}</span>
+          </button>
 
-        <p className="fixture-desc">
-          {POC_FIXTURES[selectedFixtureId]?.description}
-        </p>
+          {showPocSection && (
+            <div className="poc-accordion-body">
+              <label htmlFor="poc-fixture-select" className="poc-label">
+                Synthetic Fixture:
+              </label>
+              <select
+                id="poc-fixture-select"
+                className="poc-select"
+                value={selectedFixtureId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setSelectedFixtureId(id);
+                  void handlePrecomputePoc(id);
+                }}
+              >
+                {Object.values(POC_FIXTURES).map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.title}
+                  </option>
+                ))}
+              </select>
 
-        <div className="payload-meta-row">
-          {isPreparing ? (
-            <span className="meta-status preparing">Preparing payload...</span>
-          ) : preparedPayload ? (
-            <span className="meta-status ready">
-              ⚡ Ready ({preparedPayload.binaryBytes} B binary | {preparedPayload.nodeCount} nodes)
-            </span>
-          ) : (
-            <span className="meta-status error">Payload not ready</span>
+              <button
+                type="button"
+                className="btn-poc-copy"
+                onClick={handleCopyPoc}
+                disabled={isPreparingPoc}
+              >
+                Copy Fixture to Figma
+              </button>
+
+              {pocFeedback && (
+                <div className={`feedback-banner ${pocFeedback.success ? 'feedback-success' : 'feedback-error'}`}>
+                  {pocFeedback.message}
+                </div>
+              )}
+            </div>
           )}
-        </div>
+        </section>
+      </main>
 
-        <button
-          className="copy-btn"
-          disabled={!preparedPayload || isPreparing}
-          onClick={handleCopy}
+      <footer className="popup-footer">
+        <span className="footer-target">Target: {targetName} MV3</span>
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            if (typeof browser !== 'undefined' && browser.runtime?.openOptionsPage) {
+              void browser.runtime.openOptionsPage();
+            }
+          }}
         >
-          {isPreparing ? 'Precomputing...' : '📋 Copy to Figma Clipboard'}
-        </button>
-
-        {copyFeedback && (
-          <div
-            className={`feedback-banner ${
-              copyFeedback.success ? 'feedback-success' : 'feedback-error'
-            }`}
-          >
-            <div className="feedback-text">{copyFeedback.message}</div>
-          </div>
-        )}
-      </div>
-
-      {/* Background Diagnostic Ping */}
-      <div className="diag-section">
-        <button className="ping-btn" onClick={handlePing}>
-          Ping Background Worker
-        </button>
-        {pingResult && <div className="ping-result">{pingResult}</div>}
-      </div>
-
-      {/* Footer */}
-      <div className="footer">
-        <span>v0.1.0</span>
-        <a onClick={() => browser.runtime.openOptionsPage?.()}>Options</a>
-      </div>
+          Options
+        </a>
+      </footer>
     </div>
   );
 };
