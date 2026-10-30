@@ -141,18 +141,18 @@ export async function handleRuntimeMessage(
         const url = tab.url ?? '';
         const origin = new URL(url).origin;
 
-        const job = await jobRegistry.createJob({
+        const createdJob = await jobRegistry.createJob({
           tabId,
           url,
           origin,
           mode
         });
 
-        await jobRegistry.updateJobState(job.jobId, 'capturing', {
+        const activeJob = await jobRegistry.updateJobState(createdJob.jobId, 'capturing', {
           currentStep: 'Initializing page capture'
         });
 
-        const resp: StartCaptureResponse = { job };
+        const resp: StartCaptureResponse = { job: activeJob };
         return { id: requestId, success: true, payload: resp };
       }
 
