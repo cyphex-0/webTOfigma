@@ -59,6 +59,23 @@ export interface SceneEffect {
   visible: boolean;
 }
 
+export interface SceneTextData {
+  text: string;
+  fontSize: number;
+  fontWeight: number;
+  fontFamily: string;
+  fontStyle?: 'normal' | 'italic' | 'oblique' | undefined;
+  lineHeight?: number | { unit: 'PIXELS' | 'PERCENT' | 'AUTO'; value?: number | undefined } | undefined;
+  letterSpacing?: number | { unit: 'PIXELS' | 'PERCENT'; value: number } | undefined;
+  textAlign: 'LEFT' | 'CENTER' | 'RIGHT' | 'JUSTIFIED';
+  textAutoResize?: 'NONE' | 'WIDTH_AND_HEIGHT' | 'HEIGHT' | undefined;
+  textCase?: 'ORIGINAL' | 'UPPER' | 'LOWER' | 'TITLE' | undefined;
+  textDecoration?: 'NONE' | 'UNDERLINE' | 'STRIKETHROUGH' | undefined;
+  sourceFont?: string | undefined;
+  resolvedFont?: string | undefined;
+  rawVariationSettings?: Record<string, number> | string | undefined;
+}
+
 export interface SceneNode {
   id: string;
   parentId: string | null;
@@ -83,15 +100,7 @@ export interface SceneNode {
   strokes: SceneStroke[];
   effects: SceneEffect[];
   clipsContent: boolean;
-  textData?: {
-    text: string;
-    fontSize: number;
-    fontWeight: number;
-    fontFamily: string;
-    lineHeight?: number | undefined;
-    letterSpacing?: number | undefined;
-    textAlign: 'LEFT' | 'CENTER' | 'RIGHT' | 'JUSTIFIED';
-  } | undefined;
+  textData?: SceneTextData | undefined;
   layoutMetadata?: {
     layoutMode: 'NONE' | 'HORIZONTAL' | 'VERTICAL';
     primaryAxisAlign: 'MIN' | 'CENTER' | 'MAX' | 'SPACE_BETWEEN';

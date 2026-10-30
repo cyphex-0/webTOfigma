@@ -86,6 +86,15 @@ export function extractDirectElementText(
   el: Element,
   whiteSpace = 'normal'
 ): string {
+  // Privacy & Exclusion Guard: Never extract direct text runs from form inputs, textareas, or excluded overlays
+  const tag = el.tagName.toUpperCase();
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+    return '';
+  }
+  if (el.getAttribute('data-w2f-exclude') === 'true' || el.closest?.('[data-w2f-exclude="true"]')) {
+    return '';
+  }
+
   let result = '';
   const isPre = whiteSpace.startsWith('pre') || whiteSpace === 'break-spaces';
 

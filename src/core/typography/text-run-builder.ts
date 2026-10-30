@@ -95,6 +95,15 @@ export function buildTextRuns(
   rootEl: Element,
   options: RunBuilderOptions = {}
 ): TextRun[] {
+  // Privacy & Exclusion Guard: Never extract text runs from form inputs, textareas, or excluded overlays
+  const rootTag = rootEl.tagName.toUpperCase();
+  if (rootTag === 'INPUT' || rootTag === 'TEXTAREA' || rootTag === 'SELECT') {
+    return [];
+  }
+  if (rootEl.getAttribute('data-w2f-exclude') === 'true' || rootEl.closest?.('[data-w2f-exclude="true"]')) {
+    return [];
+  }
+
   const rawRuns: TextRun[] = [];
   const win = options.windowRef ?? (typeof window !== 'undefined' ? window : undefined);
 
@@ -105,6 +114,12 @@ export function buildTextRuns(
       if (!text || (!text.trim() && !text.includes('\n'))) return;
 
       const parentEl = node.parentElement;
+      if (parentEl) {
+        const pTag = parentEl.tagName.toUpperCase();
+        if (pTag === 'INPUT' || pTag === 'TEXTAREA' || pTag === 'SELECT') return;
+        if (parentEl.getAttribute('data-w2f-exclude') === 'true' || parentEl.closest?.('[data-w2f-exclude="true"]')) return;
+      }
+
       const style =
         parentEl && win && win.getComputedStyle
           ? win.getComputedStyle(parentEl)
@@ -115,6 +130,9 @@ export function buildTextRuns(
       // ELEMENT_NODE
       const el = node as Element;
       const tag = el.tagName.toLowerCase();
+
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if (el.getAttribute('data-w2f-exclude') === 'true' || el.closest?.('[data-w2f-exclude="true"]')) return;
 
       if (tag === 'br') {
         const style = win && win.getComputedStyle ? win.getComputedStyle(el) : ({} as any);

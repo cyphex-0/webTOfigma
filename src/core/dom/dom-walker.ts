@@ -19,6 +19,7 @@ import { projectTransformedRect } from './matrix-projector';
 import { evaluateElementVisibility } from './visibility';
 import { sanitizeElementPrivacy } from './privacy-sanitizer';
 import { extractTextRuns } from './text-extractor';
+import { extractElementTypography } from '../typography/index';
 import { extractPseudoElements } from './pseudo-elements';
 import { inspectShadowRoot } from './shadow-dom';
 import { inspectIframe } from './iframe-handler';
@@ -318,7 +319,11 @@ export class DOMWalker {
       ...(stackingTrigger.stackingTrigger ? { stackingTrigger: stackingTrigger.stackingTrigger } : {})
     };
 
-    // 9. Text run extraction
+    // 9. Typography extraction & diagnostics
+    const typoRes = extractElementTypography(el, style, { nodeId });
+    for (const d of typoRes.diagnostics) {
+      this.diagnostics.push(d);
+    }
     const textRuns = extractTextRuns(el, style);
 
     // 10. Pseudo-element synthesis (::before / ::after)
@@ -419,6 +424,7 @@ export class DOMWalker {
     // Assemble final SourceNode
     const sourceNode: SourceNode = {
       nodeId,
+      ...(typoRes.hasText ? { name: typoRes.semanticName } : {}),
       parentId,
       childIds,
       sourceTag: privacy.sourceTag,
