@@ -8,8 +8,8 @@ node_modules/
 .pnp.js
 
 # Production and test builds
-dist/
-release/
+/dist/
+/release/
 
 # Testing and coverage reports
 coverage/
