@@ -27,6 +27,7 @@ import {
   writePreparedClipboardPayload,
   type PreparedClipboardPayload
 } from '../core/figma/poc/clipboard-poc';
+import { FigmaClipboardAdapter } from '../core/figma/clipboard/figma-clipboard-adapter';
 import { POC_FIXTURES } from '../core/figma/poc/fixtures';
 
 export const App: React.FC = () => {
@@ -258,10 +259,10 @@ export const App: React.FC = () => {
   // Handle Copy to Figma for ready-to-copy job
   const handleCopyToFigma = async (): Promise<{ success: boolean; bytesWritten?: number; error?: string }> => {
     try {
-      // Use precomputed or nested-card fixture payload as reliable carrier
-      const prepared = await prepareClipboardPayload('nested-card');
-      await writePreparedClipboardPayload(prepared);
-      return { success: true, bytesWritten: prepared.htmlBytes };
+      const adapter = new FigmaClipboardAdapter();
+      const pastePayload = await adapter.createPasteTestPayload();
+      await adapter.writePreparedBatch(pastePayload);
+      return { success: true, bytesWritten: pastePayload.binaryBuffer.byteLength };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       return { success: false, error: msg };

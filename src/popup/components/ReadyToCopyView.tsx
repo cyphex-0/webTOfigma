@@ -1,37 +1,71 @@
 import React, { useState } from 'react';
 import type { JobRecord } from '../../shared/contracts/messages';
+import type { ClipboardBatch } from '../../core/figma/clipboard/batch-partitioner';
+import { ClipboardResult } from './ClipboardResult';
 
 export interface ReadyToCopyViewProps {
   job: JobRecord;
   onCopyToClipboard: () => Promise<{ success: boolean; bytesWritten?: number; error?: string }>;
   onStartNew: () => void;
+  batches?: ClipboardBatch[] | undefined;
+  onCopyBatch?: ((batchIndex: number) => Promise<void>) | undefined;
 }
 
 export const ReadyToCopyView: React.FC<ReadyToCopyViewProps> = ({
   job,
   onCopyToClipboard,
-  onStartNew
+  onStartNew,
+  batches: externalBatches,
+  onCopyBatch
 }) => {
-  const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [bytesWritten, setBytesWritten] = useState<number | null>(null);
+  const createDefaultBatch = (): ClipboardBatch => ({
+    batchId: `batch_${job.jobId}`,
+    batchIndex: 1,
+    totalBatches: 1,
+    pageFrames: [],
+    metadata: [],
+    nodes: Array.from({ length: job.nodeCount ?? 1 }, (_, i) => ({
+      id: `node_${i}`,
+      parentId: null,
+      childIds: [],
+      name: `Node ${i + 1}`,
+      type: 'FRAME',
+      visible: true,
+      x: 0,
+      y: 0,
+      width: 1440,
+      height: 900,
+      rotation: 0,
+      fills: [],
+      strokes: [],
+      effects: [],
+      clipsContent: true
+    })),
+    status: 'ready',
+    estimatedBytes: (job.nodeCount ?? 1) * 65
+  });
 
-  const handleCopyClick = async () => {
-    setCopyState('copying');
-    setErrorMessage(null);
-    try {
+  const [batches, setBatches] = useState<ClipboardBatch[]>(() =>
+    externalBatches && externalBatches.length > 0 ? externalBatches : [createDefaultBatch()]
+  );
+
+  const handleCopyBatch = async (batchIndex: number) => {
+    if (onCopyBatch) {
+      await onCopyBatch(batchIndex);
+    } else {
       const res = await onCopyToClipboard();
-      if (res.success) {
-        setCopyState('copied');
-        setBytesWritten(res.bytesWritten ?? null);
-      } else {
-        setCopyState('error');
-        setErrorMessage(res.error ?? 'Failed to write to clipboard');
+      if (!res.success) {
+        throw new Error(res.error ?? 'Failed to write to clipboard');
       }
-    } catch (err: unknown) {
-      setCopyState('error');
-      setErrorMessage(err instanceof Error ? err.message : String(err));
     }
+
+    setBatches((prev) =>
+      prev.map((b) =>
+        b.batchIndex === batchIndex
+          ? { ...b, status: 'copied', copiedAt: Date.now() }
+          : b
+      )
+    );
   };
 
   return (
@@ -64,67 +98,11 @@ export const ReadyToCopyView: React.FC<ReadyToCopyViewProps> = ({
         </div>
       </div>
 
-      <div className="copy-action-box">
-        <button
-          type="button"
-          className={`btn-copy-figma ${copyState === 'copied' ? 'btn-copied' : ''}`}
-          onClick={handleCopyClick}
-          disabled={copyState === 'copying'}
-          autoFocus
-        >
-          {copyState === 'copying' && <span className="spinner-sm" aria-hidden="true" />}
-          {copyState === 'copied' ? (
-            <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              <span>Copied to Clipboard!</span>
-            </>
-          ) : (
-            <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-              </svg>
-              <span>Copy to Figma</span>
-            </>
-          )}
-        </button>
-
-        {copyState === 'copied' && (
-          <div className="paste-instructions-banner" role="status">
-            <strong>Next Step: Paste into Figma</strong>
-            <p>
-              Switch to your Figma canvas and press <kbd>Ctrl</kbd> + <kbd>V</kbd> (or <kbd>⌘</kbd> + <kbd>V</kbd> on macOS).
-            </p>
-            {bytesWritten && (
-              <span className="payload-size-note">
-                Binary payload size: {(bytesWritten / 1024).toFixed(1)} KB
-              </span>
-            )}
-          </div>
-        )}
-
-        {copyState === 'error' && errorMessage && (
-          <div className="error-banner" role="alert">
-            <span>{errorMessage}</span>
-          </div>
-        )}
-      </div>
-
-      <div className="ready-disclaimer">
-        <span>Note: The extension copies data to your clipboard. It does not paste into Figma automatically.</span>
-      </div>
-
-      <div className="ready-footer-actions">
-        <button
-          type="button"
-          className="btn-start-new"
-          onClick={onStartNew}
-        >
-          Start New Export
-        </button>
-      </div>
+      <ClipboardResult
+        batches={batches}
+        onCopyBatch={handleCopyBatch}
+        onStartNew={onStartNew}
+      />
     </div>
   );
 };

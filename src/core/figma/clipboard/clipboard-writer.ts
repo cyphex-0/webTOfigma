@@ -154,31 +154,34 @@ export async function writePreparedBatchDirectly(
 
   try {
     if (typeof navigator.clipboard.write === 'function') {
-      const itemToWrite =
-        prepared.clipboardItem ??
-        (typeof ClipboardItem !== 'undefined'
-          ? new ClipboardItem({
-              'text/html': prepared.htmlBlob,
-              'text/plain': prepared.plainTextBlob
-            })
-          : null);
+      let itemToWrite: ClipboardItem | null = prepared.clipboardItem;
+      if (!itemToWrite && typeof ClipboardItem !== 'undefined') {
+        try {
+          itemToWrite = new ClipboardItem({
+            'text/html': prepared.htmlBlob,
+            'text/plain': prepared.plainTextBlob
+          });
+        } catch {
+          itemToWrite = null;
+        }
+      }
 
       if (itemToWrite) {
         await navigator.clipboard.write([itemToWrite]);
-      } else if (typeof navigator.clipboard.writeText === 'function') {
-        await navigator.clipboard.writeText(prepared.plainText);
       } else {
-        throw new ClipboardWriteError(
-          'CLIPBOARD_NOT_SUPPORTED',
-          'Neither clipboard.write nor clipboard.writeText are available.'
-        );
+        await navigator.clipboard.write([
+          {
+            'text/html': prepared.htmlBlob,
+            'text/plain': prepared.plainTextBlob
+          } as unknown as ClipboardItem
+        ]);
       }
     } else if (typeof navigator.clipboard.writeText === 'function') {
       await navigator.clipboard.writeText(prepared.plainText);
     } else {
       throw new ClipboardWriteError(
         'CLIPBOARD_NOT_SUPPORTED',
-        'navigator.clipboard.write is not a function.'
+        'Neither clipboard.write nor clipboard.writeText are available.'
       );
     }
   } catch (err: unknown) {
