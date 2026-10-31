@@ -11,3 +11,6 @@ export * from './crawl-scope';
 export * from './route-filter';
 export * from './route-order';
 export * from './route-selection';
+export * from './crawl-limits';
+export * from './page-session';
+export * from './page-readiness';

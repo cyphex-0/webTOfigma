@@ -58,7 +58,12 @@ export interface RouteQueueOptions {
 
 export type RouteProcessor = (
   item: RouteQueueItem
-) => Promise<{ success: boolean; sceneDocumentId?: string; isAuthRedirect?: boolean; error?: string }>;
+) => Promise<{
+  success: boolean;
+  sceneDocumentId?: string | undefined;
+  isAuthRedirect?: boolean | undefined;
+  error?: string | undefined;
+}>;
 
 export class RouteQueue {
   private readonly jobId: string;
@@ -69,6 +74,7 @@ export class RouteQueue {
   private processor: RouteProcessor | null = null;
   private readonly onProgress?: ((progress: RouteQueueProgress) => void) | undefined;
   private readonly onPersist?: ((snapshot: PersistedQueueSnapshot) => Promise<void>) | undefined;
+  private completionResolvers: Array<(state: QueueState) => void> = [];
 
   constructor(options: RouteQueueOptions) {
     this.jobId = options.jobId;
@@ -147,6 +153,29 @@ export class RouteQueue {
     }
     void this.persistState();
     this.notifyProgress();
+    this.notifyCompletion();
+  }
+
+  /**
+   * Awaits until the queue completes all items or is cancelled.
+   */
+  public waitForCompletion(): Promise<QueueState> {
+    if (this.state === 'completed' || this.state === 'cancelled') {
+      return Promise.resolve(this.state);
+    }
+    return new Promise((resolve) => {
+      this.completionResolvers.push(resolve);
+    });
+  }
+
+  private notifyCompletion(): void {
+    if (this.state === 'completed' || this.state === 'cancelled') {
+      const resolvers = [...this.completionResolvers];
+      this.completionResolvers = [];
+      for (const resolve of resolvers) {
+        resolve(this.state);
+      }
+    }
   }
 
   /**
@@ -171,6 +200,7 @@ export class RouteQueue {
         this.state = 'completed';
         void this.persistState();
         this.notifyProgress();
+        this.notifyCompletion();
       }
     }
   }
