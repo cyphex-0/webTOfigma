@@ -1217,3 +1217,230 @@ select:focus-visible,
 .btn-start-new:hover {
   text-decoration: underline;
 }
+
+/* Phase 22: Diagnostics View & Recovery Modal Styles */
+.diagnostics-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.diagnostics-modal-card {
+  background: #ffffff;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.diagnostics-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+
+.diagnostics-header-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.diagnostics-header-title h2 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary, #0f172a);
+}
+
+.diagnostics-badge-count {
+  font-size: 11px;
+  color: var(--text-secondary, #64748b);
+}
+
+.diagnostics-modal-body {
+  padding: 12px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.diagnostics-empty-state {
+  padding: 24px;
+  text-align: center;
+  color: #059669;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.diagnostics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diagnostic-card-item {
+  border-radius: 6px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.diagnostic-card-item.diag-warning {
+  border-left: 4px solid #f59e0b;
+  background: #fffbeb;
+}
+
+.diagnostic-card-item.diag-error,
+.diagnostic-card-item.diag-fatal {
+  border-left: 4px solid #ef4444;
+  background: #fef2f2;
+}
+
+.diagnostic-item-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.diag-code-tag {
+  font-size: 10px;
+  font-family: monospace;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.diag-severity-tag {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.severity-warning {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.severity-error,
+.severity-fatal {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.severity-info {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.diag-phase-tag {
+  font-size: 9px;
+  color: #64748b;
+  margin-left: auto;
+}
+
+.diag-message-text {
+  font-size: 11px;
+  color: #334155;
+  margin: 2px 0;
+  line-height: 1.4;
+}
+
+.diag-meta-row {
+  font-size: 10px;
+  color: #64748b;
+  display: flex;
+  gap: 4px;
+}
+
+.meta-value {
+  font-family: monospace;
+  color: #1e293b;
+  word-break: break-all;
+}
+
+.diag-action-callout {
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 4px;
+  font-size: 10px;
+  color: #0f172a;
+}
+
+.unretryable-notice-box {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: #475569;
+}
+
+.diagnostics-modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+}
+
+.btn-copy-report {
+  background: transparent;
+  border: 1px solid var(--border-color, #cbd5e1);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  cursor: pointer;
+  color: #475569;
+}
+
+.footer-right-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-retry-failed-routes {
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-retry-failed-routes:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-close-diagnostics {
+  background: #f1f5f9;
+  border: 1px solid var(--border-color, #cbd5e1);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  color: #334155;
+}

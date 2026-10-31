@@ -8,9 +8,11 @@ import { ActionControls } from './components/ActionControls';
 import { JobProgressView } from './components/JobProgressView';
 import { ReadyToCopyView } from './components/ReadyToCopyView';
 import { HelpModal } from './components/HelpModal';
+import { DiagnosticsView } from './components/DiagnosticsView';
 import { RouteReview } from './components/RouteReview';
 import { discoverSiteRoutes, DiscoveredRoute } from '../core/crawler';
 import { settingsStore } from '../core/settings/settings-store';
+import type { ExportDiagnostic } from '../shared/contracts/diagnostics';
 import type { ExportMode } from '../shared/contracts/export-job';
 import type { CaptureProfile, ExtensionSettings } from '../shared/contracts/settings';
 import type {
@@ -52,8 +54,9 @@ export const App: React.FC = () => {
   const [isStartingExport, setIsStartingExport] = useState<boolean>(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
-  // Help Modal State
+  // Help Modal & Diagnostics State
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
+  const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
   const [isMinibarActive, setIsMinibarActive] = useState<boolean>(false);
 
   // Phase 1 PoC Verification Accordion State
@@ -378,7 +381,13 @@ export const App: React.FC = () => {
             />
 
             {exportError && (
-              <div className="error-banner" role="alert">
+              <div
+                className="error-banner"
+                role="alert"
+                onClick={() => setShowDiagnostics(true)}
+                style={{ cursor: 'pointer' }}
+                title="Click to view detailed diagnostics and recovery options"
+              >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="8" x2="12" y2="12" />
@@ -462,6 +471,26 @@ export const App: React.FC = () => {
         isOpen={isHelpOpen}
         onClose={() => setIsHelpOpen(false)}
       />
+
+      {showDiagnostics && (
+        <DiagnosticsView
+          diagnostics={
+            ((activeJob && 'diagnostics' in activeJob ? (activeJob as { diagnostics?: ExportDiagnostic[] }).diagnostics : null) ??
+              (exportError
+                ? [
+                    {
+                      severity: 'error' as const,
+                      code: 'EXPORT_ERROR',
+                      message: exportError,
+                      phase: 'dom-extraction' as const,
+                      timestamp: Date.now()
+                    }
+                  ]
+                : []))
+          }
+          onClose={() => setShowDiagnostics(false)}
+        />
+      )}
     </div>
   );
 };
