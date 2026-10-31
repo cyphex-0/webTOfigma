@@ -17,7 +17,7 @@ import type { ExportMode } from '../shared/contracts/export-job';
 import type { CaptureProfile, ExtensionSettings } from '../shared/contracts/settings';
 import type { FigmaSceneDocument } from '../shared/contracts/scene';
 import { getCaptureStorage } from '../core/storage/capture-database';
-import { prepareClipboardBatchItem } from '../core/figma/clipboard/clipboard-writer';
+import { prepareClipboardBatchItem, type PreparedClipboardBatch } from '../core/figma/clipboard/clipboard-writer';
 import type {
   ActiveTabContext,
   GetActiveTabContextResponse,
@@ -64,6 +64,8 @@ export const App: React.FC = () => {
   const isReadyToCopy = Boolean(
     activeJob && (activeJob.state === 'ready_to_copy' || activeJob.state === 'completed')
   );
+
+  const [preparedJobBatch, setPreparedJobBatch] = useState<PreparedClipboardBatch | null>(null);
 
   // Help Modal & Diagnostics State
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
@@ -161,6 +163,60 @@ export const App: React.FC = () => {
     }, 400);
     return () => clearInterval(interval);
   }, [isJobRunning, fetchActiveJob]);
+
+  // Pre-prepare clipboard batch ahead of user click as soon as capture finishes (Zero-I/O)
+  useEffect(() => {
+    if (!activeJob || (activeJob.state !== 'ready_to_copy' && activeJob.state !== 'completed')) {
+      setPreparedJobBatch(null);
+      return;
+    }
+
+    let isCancelled = false;
+    const precomputeBatch = async () => {
+      try {
+        const adapter = new FigmaClipboardAdapter();
+        let doc: FigmaSceneDocument | null = null;
+        try {
+          const resp = (await browser.runtime.sendMessage({
+            id: `get_doc_${Date.now()}`,
+            type: 'GET_SCENE_DOCUMENT',
+            payload: { jobId: activeJob.jobId },
+            timestamp: Date.now()
+          })) as MessageResponse<{ document: FigmaSceneDocument | null }>;
+          if (resp && resp.success && resp.payload?.document) {
+            doc = resp.payload.document;
+          }
+        } catch {
+          const storage = await getCaptureStorage();
+          doc = await storage.getSceneDocument(activeJob.jobId);
+        }
+
+        if (doc && !isCancelled) {
+          const nodes = doc.allNodes && doc.allNodes.length > 0 ? doc.allNodes : doc.pageFrames;
+          if (nodes.length > 0) {
+            const serialization = await adapter.serializeDocument(nodes);
+            const prepared = prepareClipboardBatchItem({
+              batchId: `batch_${activeJob.jobId}`,
+              batchIndex: 1,
+              totalBatches: 1,
+              nodeCount: nodes.length,
+              binaryBuffer: serialization.binaryBuffer
+            });
+            if (!isCancelled) {
+              setPreparedJobBatch(prepared);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[WebToFigma] Error pre-preparing clipboard batch:', err);
+      }
+    };
+
+    void precomputeBatch();
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeJob?.jobId, activeJob?.state]);
 
   // Execute Capture Job with optional selected routes
   const executeCaptureJob = async (selectedRoutes?: DiscoveredRoute[]) => {
@@ -283,6 +339,12 @@ export const App: React.FC = () => {
   const handleCopyToFigma = async (): Promise<{ success: boolean; bytesWritten?: number; error?: string }> => {
     try {
       const adapter = new FigmaClipboardAdapter();
+
+      // Fast path: use advance precomputed batch within transient user gesture window
+      if (preparedJobBatch) {
+        await adapter.writePreparedBatch(preparedJobBatch);
+        return { success: true, bytesWritten: preparedJobBatch.binaryBuffer.byteLength };
+      }
 
       if (activeJob) {
         let doc: FigmaSceneDocument | null = null;

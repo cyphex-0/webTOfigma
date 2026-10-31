@@ -101,11 +101,23 @@ export function buildPageScene(
     }
   }
 
-  // 4. Attach top-level root source nodes to rootFrame
+  // 4. Attach top-level root source nodes to rootFrame and normalize root container bounds
   for (const sourceNode of capture.nodes) {
     const sceneId = `scene_${sourceNode.nodeId}`;
+    const sceneNode = allNodes.get(sceneId);
+
+    // In full-page capture, ensure root-level HTML/BODY containers cover full scroll dimensions
+    // and do not clip vertically overflowing content
+    if (sceneNode && capture.metadata.captureMode === 'full-page') {
+      const tag = sourceNode.sourceTag.toUpperCase();
+      if (tag === 'HTML' || tag === 'BODY' || !sourceNode.parentId) {
+        sceneNode.width = Math.max(frameWidth, sceneNode.width);
+        sceneNode.height = Math.max(frameHeight, sceneNode.height);
+        sceneNode.clipsContent = false;
+      }
+    }
+
     if (!sourceNode.parentId || !sourceNodesById.has(sourceNode.parentId)) {
-      const sceneNode = allNodes.get(sceneId);
       if (sceneNode) {
         sceneNode.parentId = rootFrame.id;
         if (!rootFrame.childIds.includes(sceneId)) {
@@ -115,12 +127,15 @@ export function buildPageScene(
     }
   }
 
-  // If first source node has background, inherit it on page frame
-  const firstNode = capture.nodes[0];
-  if (firstNode) {
-    const firstScene = allNodes.get(`scene_${firstNode.nodeId}`);
-    if (firstScene && firstScene.fills.length > 0) {
-      rootFrame.fills = [...firstScene.fills];
+  // Inherit page background from HTML or BODY if available
+  for (let i = 0; i < Math.min(5, capture.nodes.length); i++) {
+    const candidate = capture.nodes[i];
+    if (candidate) {
+      const candidateScene = allNodes.get(`scene_${candidate.nodeId}`);
+      if (candidateScene && candidateScene.fills.length > 0) {
+        rootFrame.fills = [...candidateScene.fills];
+        break;
+      }
     }
   }
 

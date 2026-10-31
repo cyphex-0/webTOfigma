@@ -80,6 +80,12 @@ export async function captureFullPage(
       if (doc.scrollingElement) {
         doc.scrollingElement.scrollTop = 0;
       }
+      if (scrollResult.customContainerUsed && scrollResult.customContainerSelector) {
+        const customEl = doc.querySelector(scrollResult.customContainerSelector);
+        if (customEl) {
+          customEl.scrollTop = 0;
+        }
+      }
     } catch {
       // Ignore scroll-to errors
     }

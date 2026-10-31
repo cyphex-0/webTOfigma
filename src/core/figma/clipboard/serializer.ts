@@ -79,6 +79,57 @@ function toFigmaColor(color?: { r: number; g: number; b: number; a: number }): F
 }
 
 /**
+ * Topologically sorts an array of SceneNodes so that parent nodes strictly precede
+ * their child nodes in array order. This prevents forward reference errors in sequential
+ * wire protocols (e.g. Figma Kiwi) where deserialization requires parent containers to exist
+ * before processing child changes.
+ */
+export function topologicallySortSceneNodes(inputNodes: readonly SceneNode[]): SceneNode[] {
+  const nodeMap = new Map<string, SceneNode>();
+  for (const node of inputNodes) {
+    nodeMap.set(node.id, node);
+  }
+
+  const visited = new Set<string>();
+  const sorted: SceneNode[] = [];
+
+  // Identify root nodes (nodes with no parent or whose parent is not in inputNodes)
+  const rootNodes: SceneNode[] = [];
+  for (const node of inputNodes) {
+    if (!node.parentId || !nodeMap.has(node.parentId)) {
+      rootNodes.push(node);
+    }
+  }
+
+  function visit(node: SceneNode): void {
+    if (visited.has(node.id)) return;
+    visited.add(node.id);
+    sorted.push(node);
+
+    for (const childId of node.childIds) {
+      const childNode = nodeMap.get(childId);
+      if (childNode) {
+        visit(childNode);
+      }
+    }
+  }
+
+  // Pre-order traversal starting from root nodes
+  for (const root of rootNodes) {
+    visit(root);
+  }
+
+  // Fallback: Append any disconnected nodes not reachable via parent.childIds
+  for (const node of inputNodes) {
+    if (!visited.has(node.id)) {
+      visit(node);
+    }
+  }
+
+  return sorted;
+}
+
+/**
  * Converts intermediate SceneNode graphs into a valid FigmaMessage Kiwi structure.
  */
 export function convertSceneNodesToFigmaMessage(
@@ -127,12 +178,15 @@ export function convertSceneNodesToFigmaMessage(
     }
   }
 
-  // 3. Assign GUIDs and parent-child indices
+  // 3. Topologically sort nodes to strictly guarantee parents precede children in wire protocol
+  const sortedNodes = topologicallySortSceneNodes(processedNodes);
+
+  // 4. Assign GUIDs and parent-child indices in topological order
   // Local ID 0 is reserved for Canvas / Virtual Root
   const guidMap = new Map<string, FigmaGUID>();
   let nextLocalId = 1;
 
-  for (const node of processedNodes) {
+  for (const node of sortedNodes) {
     guidMap.set(node.id, { sessionID: 0, localID: nextLocalId++ });
   }
 
@@ -142,7 +196,7 @@ export function convertSceneNodesToFigmaMessage(
 
   const nodeChanges: FigmaNodeChange[] = [];
 
-  for (const node of processedNodes) {
+  for (const node of sortedNodes) {
     const guid = guidMap.get(node.id)!;
 
     // Parent & Position resolution
