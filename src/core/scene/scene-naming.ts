@@ -71,19 +71,8 @@ const SEMANTIC_KIND_LABELS: Record<string, string> = {
   content: 'Content'
 };
 
-/**
- * Sanitizes page title strings by trimming and collapsing whitespace,
- * removing control characters, and falling back to a default when empty.
- */
-export function sanitizePageTitle(title: string): string {
-  if (!title) return 'Untitled';
-  // Remove control characters (0x00-0x1F, 0x7F) and normalize whitespace
-  const sanitized = title
-    .replace(/[\u0000-\u001F\u007F]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return sanitized || 'Untitled';
-}
+import { sanitizePageTitle } from './name-sanitizer';
+export { sanitizePageTitle };
 
 /**
  * Extracts and normalizes the URL pathname for the page frame name.

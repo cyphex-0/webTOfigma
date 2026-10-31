@@ -10,3 +10,7 @@ export * from './node-mapper';
 export * from './scene-naming';
 export * from './scene-normalizer';
 export * from './scene-validation';
+export * from './name-sanitizer';
+export * from './page-metadata';
+export * from './scene-document-validator';
+export * from './multi-page-assembler';
