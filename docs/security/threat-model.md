@@ -1,74 +1,155 @@
 # Web-to-Figma Extension Security Threat Model
 
-## Overview
-Web-to-Figma is a local-first browser extension (Manifest V3) that captures web page DOM structures, styles, and assets, translating them into vector scene graphs for direct clipboard export to Figma. Because the extension interacts directly with untrusted web content and processes binary payloads, it employs a defense-in-depth security model.
+**Product:** Web-to-Figma Exporter  
+**Version:** 0.1.0  
+**Last Updated:** October 31, 2026  
+**Auditor:** Antigravity AI Engineering Suite  
 
 ---
 
-## Threat Matrix & Mitigations
+## 1. Overview & Security Architecture
 
-### 1. Malicious Page DOM (Deceptive Nodes / Deep Nesting)
-- **Threat**: Malicious websites craft cyclic DOM references or deeply nested trees (> 1000 levels) to cause call-stack overflow or out-of-memory crashes.
-- **Mitigation**: Bounded iterative DOM traversal (`DOMWalker`) with explicit depth caps (`maxHierarchyDepth`), cycle detection via visited `WeakSet`, and total node count budgeting.
-- **Residual Risk**: Ultra-large pages are bounded and marked partial.
+Web-to-Figma is a local-first browser extension (Manifest V3) that captures web page DOM structures, styles, and assets, translating them into vector scene graphs for direct clipboard export to Figma. Because the extension interacts directly with untrusted web content and processes binary payloads, it employs a defense-in-depth security model:
 
-### 2. Hostile Text and URLs (XSS, `javascript:` Protocols)
-- **Threat**: Pages embedding `javascript:`, `data:`, or `file:` protocols in links or image sources, or injecting script strings into element texts.
-- **Mitigation**: Strict URL scheme validator (`validateTargetUrl`) allowing only `http:` and `https:`. All extracted text is encoded as pure string text properties; extension UI never calls `innerHTML` with page-derived content.
-- **Residual Risk**: None; unexecutable in Figma Kiwi text layers.
-
-### 3. SVG Script and Event Payloads
-- **Threat**: Embedded `<script>`, `onload`, `onclick`, or `<foreignObject>` tags inside vector SVG illustrations.
-- **Mitigation**: Multi-tier SVG allowlist sanitizer (`src/core/assets/svg-sanitizer.ts`) stripping all script tags, event handlers, foreign objects, and dangerous entity declarations.
-- **Residual Risk**: Unsupported complex SVG filters are stripped with diagnostics.
-
-### 4. CSS-Based Resource Abuse
-- **Threat**: Hostile CSS containing infinite recursion, recursive `@import`, or heavy animations.
-- **Mitigation**: Compute only static computed styles (`window.getComputedStyle`). External stylesheet imports are not fetched independently; CSS animations are not executed.
-- **Residual Risk**: None.
-
-### 5. Oversized or Decompression-Bomb Assets
-- **Threat**: Decompression bombs or ultra-tall raster images crashing Figma WebGL canvas or browser memory.
-- **Mitigation**: WebGL MAX_TEXTURE_SIZE probing and automatic vertical texture slicing (`sliceOversizedImageNode`). Asset download size caps (max 8MB-32MB per hardware tier).
-- **Residual Risk**: Extremely large assets are sliced into seamless sub-frames.
-
-### 6. Malformed Image and Vector Data
-- **Threat**: Malformed PNG/JPEG headers or corrupt SVG data causing decoder crashes.
-- **Mitigation**: Validation of image content headers, fallback to placeholder bounding boxes on decoder failure.
-- **Residual Risk**: Corrupt images logged as `ASSET_FETCH_FAILED`.
-
-### 7. Compromised Dependencies & Supply Chain
-- **Threat**: Malicious third-party npm package modifications or transitive vulnerabilities.
-- **Mitigation**: Exact lockfile pinning (`package-lock.json`), zero unnecessary runtime dependencies, automated audit CI, strict CSP prohibiting remote code or `eval()`.
-- **Residual Risk**: Maintained through scheduled dependency audits.
-
-### 8. Prototype Pollution
-- **Threat**: Malicious properties like `__proto__` injected via JSON or object deserialization.
-- **Mitigation**: Strict TypeScript domain schemas validated via Zod; use of `Map` data structures rather than bare objects for dynamic keys.
-- **Residual Risk**: None.
-
-### 9. Message Spoofing Across Extension Boundaries
-- **Threat**: Unauthorized external web pages sending runtime messages to the background script.
-- **Mitigation**: MV3 message listener verifies `sender.id === chrome.runtime.id` and validates envelope types (`isValidMessageEnvelope`). No `externally_connectable` permissions enabled.
-- **Residual Risk**: None.
-
-### 10. Extension UI Injection (DOM Clobbering)
-- **Threat**: In-page Minibar or Popup DOM manipulated by host page scripts.
-- **Mitigation**: Minibar is isolated inside a closed Shadow Root (`mode: 'closed'`); Popup runs in an isolated extension page context with zero direct host script access.
-- **Residual Risk**: None.
-
-### 11. Clipboard Payload Corruption
-- **Threat**: Third-party page scripts attempting to overwrite or intercept clipboard contents during copy.
-- **Mitigation**: Advance preparation of all blobs; direct synchronous write inside transient user activation click handler. Baseline `text/html` and `text/plain` MIME types.
-- **Residual Risk**: Standard OS clipboard access policies apply.
-
-### 12. Accidental Capture of Sensitive Form Fields
-- **Threat**: Passwords, API tokens, or credit card numbers typed on web forms captured in scene nodes.
-- **Mitigation**: Sensitive field detection (`isSensitiveField`) masking all password fields, credential autocomplete attributes, and secret tokens with uniform `••••••••`.
-- **Residual Risk**: Users should export logged-out views where appropriate.
+- **Isolated Execution Contexts:** Extension logic runs across isolated worlds (Content Script, Background Service Worker/Event Page, Extension Popup/Options).
+- **Zero Remote Telemetry:** No page DOM, URL list, text, images, or scene graph is sent to any developer-controlled server.
+- **Strict Content Security Policy (CSP):** Prohibits `unsafe-eval`, remote scripts, remote modules, and runtime code execution.
+- **Schema Validation at Boundaries:** Every message crossing context boundaries is validated against strict Zod schemas.
 
 ---
 
-## Architecture Summary
-- **Zero Remote Telemetry**: No page DOM, URL list, text, images, or scene graph is sent to any developer-controlled server.
-- **Local-First Execution**: All extraction, styling, serialization, and clipboard operations occur 100% locally on the user's machine.
+## 2. Threat Matrix & Detailed Mitigations
+
+### Threat 1: Malicious Page DOM (Deceptive Nodes / Deep Nesting)
+- **Severity:** High
+- **Exploit Preconditions:** Attacker creates an adversarial page with circular references, deep DOM recursion (> 1000 levels), or billions of empty nodes.
+- **Impact:** Call-stack overflow, excessive memory consumption, or freezing of the browser tab.
+- **Mitigation:** Bounded iterative traversal in `DOMWalker` (`src/core/dom/dom-walker.ts`). Enforces depth caps (`maxHierarchyDepth`), cycle detection via visited `WeakSet`, and node count budgets. Yields cooperatively to the event loop on large trees.
+- **Test Reference:** `src/test/unit/dom-walker.test.ts`, `src/test/unit/job-cancellation.test.ts`
+- **Residual Risk Owner:** Core DOM Team (large pages bounded gracefully and flagged as partial).
+
+---
+
+### Threat 2: Hostile Text & Script Injection (XSS, `javascript:` Schemes)
+- **Severity:** Critical
+- **Exploit Preconditions:** Web page includes hostile strings with HTML tags, `<script>` blocks, or `javascript:` links.
+- **Impact:** Execution of malicious scripts in extension popup or minibar context.
+- **Mitigation:** Strict URL scheme validator (`validateTargetUrl` in `src/core/security/url-security.ts`) permitting only `http:` and `https:`. All extracted text is encoded strictly as text runs; extension UI never uses `innerHTML` with page-derived content.
+- **Test Reference:** `src/test/unit/url-security.test.ts`, `src/test/unit/text-extractor.test.ts`
+- **Residual Risk Owner:** Security Architecture Team (Zero executable code reaches Figma Kiwi layers).
+
+---
+
+### Threat 3: SVG Script and Event Payloads
+- **Severity:** High
+- **Exploit Preconditions:** Attacker embeds `<script>`, `onload`, `onclick`, or `<foreignObject>` inside vector SVG graphics on the target page.
+- **Impact:** Script execution upon SVG preview or DOM injection.
+- **Mitigation:** Multi-tier allowlist SVG sanitizer (`src/core/assets/svg-sanitizer.ts`). Strips all `<script>`, `<foreignObject>`, and `on*` event handlers, and rejects dangerous entity definitions.
+- **Test Reference:** `src/test/unit/svg-sanitizer.test.ts`
+- **Residual Risk Owner:** Asset Pipeline Team (Unsupported complex SVG filters stripped with diagnostics).
+
+---
+
+### Threat 4: CSS-Based Resource Abuse & Reentrancy
+- **Severity:** Medium
+- **Exploit Preconditions:** Attacker crafts circular `@import` statements, infinite layout reflow loops, or adversarial CSS animations.
+- **Impact:** High CPU utilization or infinite reflow in the active tab.
+- **Mitigation:** The extension inspects only static computed styles (`window.getComputedStyle`). External stylesheet imports are not independently fetched; CSS keyframe animations and transitions are ignored.
+- **Test Reference:** `src/test/unit/style-translation.test.ts`
+- **Residual Risk Owner:** Style Conversion Team (Resolved by reading static computed styles).
+
+---
+
+### Threat 5: Oversized or Decompression-Bomb Assets
+- **Severity:** High
+- **Exploit Preconditions:** Web page includes multi-gigapixel images or crafted PNG decompression bombs designed to exhaust memory.
+- **Impact:** Out-of-memory crash of extension background worker or Figma WebGL canvas.
+- **Mitigation:** Texture budget estimation (`src/core/figma/clipboard/payload-estimator.ts`) and WebGL texture size probing (`MAX_TEXTURE_SIZE`). Oversized raster images are sliced into safe sub-tiles (`sliceOversizedImageNode`). Hard file download limits (max 8MB–32MB depending on hardware tier).
+- **Test Reference:** `src/test/unit/payload-estimator.test.ts`, `src/test/unit/production-serializer.test.ts`
+- **Residual Risk Owner:** Clipboard Pipeline Team (Oversized assets sliced or downsampled with diagnostics).
+
+---
+
+### Threat 6: Malformed Image & Vector Data
+- **Severity:** Medium
+- **Exploit Preconditions:** Attacker serves corrupt JPEG/PNG headers or broken SVG syntax.
+- **Impact:** Image decoder crash or clipboard serialization failure.
+- **Mitigation:** Verification of image byte headers prior to decoding. If decoding fails, fallback to labeled rectangular placeholders preserving layout bounding boxes.
+- **Test Reference:** `src/test/unit/asset-fetcher.test.ts`, `src/test/unit/asset-pipeline.test.ts`
+- **Residual Risk Owner:** Asset Pipeline Team (Recorded as `ASSET_DOWNLOAD_FAILED` diagnostic).
+
+---
+
+### Threat 7: Supply Chain & Compromised Dependencies
+- **Severity:** Critical
+- **Exploit Preconditions:** Third-party npm package compromised or malicious dependency introduced.
+- **Impact:** Unauthorized code execution within extension build.
+- **Mitigation:** Strict lockfile pinning (`package-lock.json`), `npm ci` enforcement, zero non-essential runtime dependencies, automated `npm audit` scans, and strict CSP prohibiting dynamic `eval()` or remote script loading.
+- **Test Reference:** `scripts/lint.mjs`, `src/test/unit/rc-qualification.test.ts`
+- **Residual Risk Owner:** Release Engineering Team.
+
+---
+
+### Threat 8: Prototype Pollution
+- **Severity:** High
+- **Exploit Preconditions:** Attacker injects properties like `__proto__` or `constructor` via JSON or messaging payloads.
+- **Impact:** Global Object prototype alteration in extension background or popup.
+- **Mitigation:** Strict TypeScript domain contracts validated via Zod schemas (`src/shared/schemas/`). Dynamic key lookups utilize ES6 `Map` and `Set` objects rather than plain JavaScript objects.
+- **Test Reference:** `src/test/unit/domain-schemas.test.ts`
+- **Residual Risk Owner:** Core Architecture Team.
+
+---
+
+### Threat 9: Message Spoofing Across Extension Boundaries
+- **Severity:** High
+- **Exploit Preconditions:** Malicious webpage or external extension attempts to send messages to `chrome.runtime.onMessage`.
+- **Impact:** Triggering unauthorized capture or corrupting extension settings.
+- **Mitigation:** Message listeners verify `sender.id === chrome.runtime.id` and validate envelope structures. No `externally_connectable` permissions are declared in manifests.
+- **Test Reference:** `src/test/unit/message-router.test.ts`, `src/test/unit/port-transport.test.ts`
+- **Residual Risk Owner:** Background Service Team.
+
+---
+
+### Threat 10: Extension UI Injection & DOM Clobbering
+- **Severity:** High
+- **Exploit Preconditions:** Target page scripts attempt to locate and tamper with the in-page minibar DOM or hijack click events.
+- **Impact:** Spoofing export status or phishing user actions.
+- **Mitigation:** In-page minibar is hosted inside a closed Shadow DOM (`element.attachShadow({ mode: 'closed' })`). Extension popup executes in an isolated HTML document outside the host page DOM.
+- **Test Reference:** `src/test/unit/minibar-injection.test.ts`, `src/test/unit/minibar-app.test.tsx`
+- **Residual Risk Owner:** Content UI Team.
+
+---
+
+### Threat 11: Clipboard Payload Corruption & Hijacking
+- **Severity:** Medium
+- **Exploit Preconditions:** Third-party page script attempts to intercept or modify clipboard data during user copy.
+- **Impact:** Malformed clipboard buffer or corrupted Figma scene graph.
+- **Mitigation:** Clipboard writing executes synchronously inside a transient user activation click handler. All binary Kiwi schemas and HTML envelopes are pre-compiled and verified before the write operation.
+- **Test Reference:** `src/test/unit/figma-clipboard-adapter.test.ts`
+- **Residual Risk Owner:** Clipboard Pipeline Team.
+
+---
+
+### Threat 12: Accidental Capture of Sensitive Form Fields
+- **Severity:** Critical
+- **Exploit Preconditions:** User triggers capture on a page containing passwords, credit card inputs, or secret authentication tokens.
+- **Impact:** Unintentional inclusion of personal secrets in exported Figma text layers.
+- **Mitigation:** Automatic sensitive field detector (`isSensitiveField` in `src/core/security/content-sanitizer.ts`). Automatically redacts password fields, credit card numbers, CVVs, and auth tokens, replacing values with `••••••••`.
+- **Test Reference:** `src/test/unit/content-sanitizer.test.ts`
+- **Residual Risk Owner:** Privacy & Security Team.
+
+---
+
+### Threat 13: SSRF & Private Network Navigation Abuse
+- **Severity:** High
+- **Exploit Preconditions:** Attacker crafts hyperlinks directing the crawler to loopback interfaces (`127.0.0.1`, `localhost`) or cloud metadata endpoints (`169.254.169.254`).
+- **Impact:** Internal network reconnaissance or unintended internal device access.
+- **Mitigation:** Target URL validator rejects private IP ranges, loopback addresses, internal browser schemes, and non-HTTP protocols. Multi-page crawling is strictly constrained to same-origin URLs.
+- **Test Reference:** `src/test/unit/url-security.test.ts`
+- **Residual Risk Owner:** Crawler Team.
+
+---
+
+## 3. Threat Model Sign-Off
+
+All 13 identified threat categories have technical mitigations in place, backed by automated unit and integration test suites. Residual risks are bounded and managed by designated engineering owners.
