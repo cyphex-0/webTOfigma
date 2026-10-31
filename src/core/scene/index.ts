@@ -14,3 +14,7 @@ export * from './name-sanitizer';
 export * from './page-metadata';
 export * from './scene-document-validator';
 export * from './multi-page-assembler';
+export * from './section-builder';
+export * from './site-directory-builder';
+export * from './canvas-collision-check';
+export * from './canvas-arranger';
