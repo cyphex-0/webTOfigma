@@ -217,8 +217,10 @@ export function buildFigmaSceneDocument(
 ): FigmaSceneDocument {
   const pageFrames = scenes.map((s) => s.pageFrame);
   let totalNodes = 0;
+  const allNodes: SceneNode[] = [];
   for (const scene of scenes) {
     totalNodes += scene.nodes.length;
+    allNodes.push(...scene.nodes);
   }
 
   const firstScene = scenes[0];
@@ -239,6 +241,7 @@ export function buildFigmaSceneDocument(
     exportedAt: Date.now(),
     pageFrames,
     sections: [],
+    allNodes,
     metadata: {
       totalNodes,
       totalAssets: 0,

@@ -16,7 +16,12 @@ import {
 } from '../shared/errors/extension-errors';
 import { jobRegistry } from './job-registry';
 import { requestOriginPermission } from './permission-manager';
+import { getCaptureStorage } from '../core/storage/capture-database';
+import { buildFigmaSceneDocument } from '../core/scene/scene-builder';
+import type { PageScene } from '../shared/contracts/scene';
+import type { ExportDiagnostic } from '../shared/contracts/diagnostics';
 import type {
+  JobState,
   MessageEnvelope,
   MessageResponse,
   GetActiveTabContextResponse,
@@ -146,7 +151,17 @@ export async function handleRuntimeMessage(
           throw new InvalidPayloadError(parseResult.error.message);
         }
 
-        const { tabId, mode } = parseResult.data as { tabId: number; mode: 'single-page' | 'multi-page' };
+        const data = parseResult.data;
+        const tabId = data.tabId as number;
+        const requestedMode = data.mode;
+        const isMulti =
+          requestedMode === 'selected-pages' ||
+          requestedMode === 'odd-pages' ||
+          requestedMode === 'even-pages' ||
+          requestedMode === 'entire-site' ||
+          requestedMode === 'multi-page';
+        const jobMode: 'single-page' | 'multi-page' = isMulti ? 'multi-page' : 'single-page';
+
         const tab = await browser.tabs.get(tabId);
         const injectCheck = isInjectableUrl(tab.url);
         if (!injectCheck.injectable) {
@@ -160,12 +175,49 @@ export async function handleRuntimeMessage(
           tabId,
           url,
           origin,
-          mode
+          mode: jobMode
         });
 
         const activeJob = await jobRegistry.updateJobState(createdJob.jobId, 'capturing', {
-          currentStep: 'Initializing page capture'
+          currentStep: 'Initializing page capture',
+          progressPercent: 5
         });
+
+        // Ensure content script is injected in target tab
+        try {
+          await browser.scripting.executeScript({
+            target: { tabId },
+            files: ['content.js']
+          });
+        } catch {
+          // Already injected or supported
+        }
+
+        // Map mode for execution pipeline
+        let pipelineMode: 'viewport' | 'selected-element' | 'full-page' = 'full-page';
+        if (requestedMode === 'viewport') {
+          pipelineMode = 'viewport';
+        } else if (requestedMode === 'select-element') {
+          pipelineMode = 'selected-element';
+        }
+
+        // Dispatch execution to content script asynchronously
+        void browser.tabs
+          .sendMessage(tabId, {
+            type: 'EXECUTE_CAPTURE',
+            payload: {
+              jobId: createdJob.jobId,
+              mode: pipelineMode,
+              options: data.options,
+              userOptions: data.userOptions
+            }
+          })
+          .catch(async (sendErr) => {
+            console.error('[WebToFigma] Failed to dispatch EXECUTE_CAPTURE to tab:', sendErr);
+            await jobRegistry.updateJobState(createdJob.jobId, 'failed', {
+              currentStep: `Failed to initiate capture in page: ${sendErr instanceof Error ? sendErr.message : String(sendErr)}`
+            });
+          });
 
         const resp: StartCaptureResponse = { job: activeJob };
         return { id: requestId, success: true, payload: resp };
@@ -180,6 +232,18 @@ export async function handleRuntimeMessage(
 
         const { jobId, reason } = parseResult.data as CancelJobRequest;
         const job = await jobRegistry.cancelJob(jobId, reason);
+
+        if (job.tabId) {
+          browser.tabs
+            .sendMessage(job.tabId, {
+              type: 'CANCEL_CAPTURE',
+              payload: { jobId, reason }
+            })
+            .catch(() => {
+              // Tab may have navigated or closed
+            });
+        }
+
         const resp: CancelJobResponse = { job };
         return { id: requestId, success: true, payload: resp };
       }
@@ -343,6 +407,91 @@ export async function handleRuntimeMessage(
         } catch {
           return { id: requestId, success: true, payload: { active: false } };
         }
+      }
+
+      // 12. Update Job Progress (from Content Script)
+      case 'UPDATE_JOB_PROGRESS': {
+        const payload = (envelope.payload ?? {}) as {
+          jobId?: string;
+          stage?: string;
+          currentStep?: string;
+          progressPercent?: number;
+          nodeCount?: number;
+          error?: string;
+        };
+        if (!payload.jobId) {
+          throw new InvalidPayloadError('jobId is required for UPDATE_JOB_PROGRESS');
+        }
+
+        let jobState: JobState = 'capturing';
+        if (payload.stage === 'analyzing_layout' || payload.stage === 'building_scene') {
+          jobState = 'processing';
+        } else if (payload.stage === 'ready_to_copy') {
+          jobState = 'ready_to_copy';
+        } else if (payload.stage === 'failed') {
+          jobState = 'failed';
+        } else if (payload.stage === 'cancelled') {
+          jobState = 'cancelled';
+        }
+
+        const updated = await jobRegistry.updateJobState(payload.jobId, jobState, {
+          ...(payload.currentStep !== undefined ? { currentStep: payload.currentStep } : {}),
+          ...(payload.progressPercent !== undefined ? { progressPercent: payload.progressPercent } : {}),
+          ...(payload.nodeCount !== undefined ? { nodeCount: payload.nodeCount } : {}),
+          ...(payload.error !== undefined
+            ? { error: serializeError(new ExtensionError(payload.error, 'UNKNOWN_ERROR', false)) }
+            : {})
+        });
+
+        return { id: requestId, success: true, payload: { job: updated } };
+      }
+
+      // 13. Finish Capture (from Content Script)
+      case 'FINISH_CAPTURE': {
+        const payload = (envelope.payload ?? {}) as {
+          jobId?: string;
+          scene?: PageScene;
+          diagnostics?: ExportDiagnostic[];
+        };
+        if (!payload.jobId || !payload.scene) {
+          throw new InvalidPayloadError('jobId and scene are required for FINISH_CAPTURE');
+        }
+
+        const existingJob = await jobRegistry.getJob(payload.jobId);
+        const origin = existingJob?.origin ?? 'Web Export';
+        const title = payload.scene.metadata.title || 'Web to Figma Export';
+
+        // Build FigmaSceneDocument
+        const figmaDoc = buildFigmaSceneDocument([payload.scene], {
+          exportTitle: title,
+          sourceSite: origin
+        });
+
+        const storage = await getCaptureStorage();
+        await storage.saveSceneDocument({
+          ...figmaDoc,
+          allNodes: payload.scene.nodes,
+          jobId: payload.jobId
+        });
+
+        const updatedJob = await jobRegistry.updateJobState(payload.jobId, 'ready_to_copy', {
+          currentStep: 'Scene ready to copy to clipboard',
+          progressPercent: 100,
+          nodeCount: payload.scene.nodes.length
+        });
+
+        return { id: requestId, success: true, payload: { job: updatedJob } };
+      }
+
+      // 14. Get Stored Scene Document
+      case 'GET_SCENE_DOCUMENT': {
+        const payload = (envelope.payload ?? {}) as { jobId?: string };
+        if (!payload.jobId) {
+          throw new InvalidPayloadError('jobId is required for GET_SCENE_DOCUMENT');
+        }
+        const storage = await getCaptureStorage();
+        const doc = await storage.getSceneDocument(payload.jobId);
+        return { id: requestId, success: true, payload: { document: doc } };
       }
 
       default:

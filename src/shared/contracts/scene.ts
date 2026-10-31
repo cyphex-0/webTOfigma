@@ -154,6 +154,7 @@ export interface FigmaSceneDocument {
   exportedAt: number;
   pageFrames: SceneNode[];
   sections: SceneNode[];
+  allNodes?: SceneNode[] | undefined;
   metadata: {
     totalNodes: number;
     totalAssets: number;

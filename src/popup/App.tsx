@@ -15,6 +15,9 @@ import { settingsStore } from '../core/settings/settings-store';
 import type { ExportDiagnostic } from '../shared/contracts/diagnostics';
 import type { ExportMode } from '../shared/contracts/export-job';
 import type { CaptureProfile, ExtensionSettings } from '../shared/contracts/settings';
+import type { FigmaSceneDocument } from '../shared/contracts/scene';
+import { getCaptureStorage } from '../core/storage/capture-database';
+import { prepareClipboardBatchItem } from '../core/figma/clipboard/clipboard-writer';
 import type {
   ActiveTabContext,
   GetActiveTabContextResponse,
@@ -53,6 +56,14 @@ export const App: React.FC = () => {
   const [activeJob, setActiveJob] = useState<JobRecord | null>(null);
   const [isStartingExport, setIsStartingExport] = useState<boolean>(false);
   const [exportError, setExportError] = useState<string | null>(null);
+
+  const isJobRunning = Boolean(
+    activeJob && (activeJob.state === 'capturing' || activeJob.state === 'processing' || activeJob.state === 'injecting')
+  );
+
+  const isReadyToCopy = Boolean(
+    activeJob && (activeJob.state === 'ready_to_copy' || activeJob.state === 'completed')
+  );
 
   // Help Modal & Diagnostics State
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
@@ -141,6 +152,15 @@ export const App: React.FC = () => {
     void fetchActiveTabContext();
     void fetchActiveJob();
   }, [fetchActiveTabContext, fetchActiveJob]);
+
+  // Continuously poll active job status when capture pipeline is running
+  useEffect(() => {
+    if (!isJobRunning) return;
+    const interval = setInterval(() => {
+      void fetchActiveJob();
+    }, 400);
+    return () => clearInterval(interval);
+  }, [isJobRunning, fetchActiveJob]);
 
   // Execute Capture Job with optional selected routes
   const executeCaptureJob = async (selectedRoutes?: DiscoveredRoute[]) => {
@@ -263,6 +283,46 @@ export const App: React.FC = () => {
   const handleCopyToFigma = async (): Promise<{ success: boolean; bytesWritten?: number; error?: string }> => {
     try {
       const adapter = new FigmaClipboardAdapter();
+
+      if (activeJob) {
+        let doc: FigmaSceneDocument | null = null;
+        try {
+          const resp = (await browser.runtime.sendMessage({
+            id: `get_doc_${Date.now()}`,
+            type: 'GET_SCENE_DOCUMENT',
+            payload: { jobId: activeJob.jobId },
+            timestamp: Date.now()
+          })) as MessageResponse<{ document: FigmaSceneDocument | null }>;
+          if (resp && resp.success && resp.payload?.document) {
+            doc = resp.payload.document;
+          }
+        } catch {
+          try {
+            const storage = await getCaptureStorage();
+            doc = await storage.getSceneDocument(activeJob.jobId);
+          } catch {
+            doc = null;
+          }
+        }
+
+        if (doc) {
+          const nodes = doc.allNodes && doc.allNodes.length > 0 ? doc.allNodes : doc.pageFrames;
+          if (nodes.length > 0) {
+            const serialization = await adapter.serializeDocument(nodes);
+            const prepared = prepareClipboardBatchItem({
+              batchId: `batch_${activeJob.jobId}`,
+              batchIndex: 1,
+              totalBatches: 1,
+              nodeCount: nodes.length,
+              binaryBuffer: serialization.binaryBuffer
+            });
+            await adapter.writePreparedBatch(prepared);
+            return { success: true, bytesWritten: serialization.binaryBuffer.byteLength };
+          }
+        }
+      }
+
+      // Fallback paste test payload if no active capture document found
       const pastePayload = await adapter.createPasteTestPayload();
       await adapter.writePreparedBatch(pastePayload);
       return { success: true, bytesWritten: pastePayload.binaryBuffer.byteLength };
@@ -313,14 +373,6 @@ export const App: React.FC = () => {
     }
     return undefined;
   };
-
-  const isJobRunning = Boolean(
-    activeJob && (activeJob.state === 'capturing' || activeJob.state === 'processing' || activeJob.state === 'injecting')
-  );
-
-  const isReadyToCopy = Boolean(
-    activeJob && (activeJob.state === 'ready_to_copy' || activeJob.state === 'completed')
-  );
 
   return (
     <div className="popup-container">

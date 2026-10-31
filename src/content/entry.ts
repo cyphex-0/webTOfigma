@@ -12,8 +12,10 @@ import { DOMWalker } from '../core/dom/dom-walker';
 import { ElementPicker } from './picker/element-picker';
 import { rebaseSubtreeCoordinates } from '../core/dom/coordinate-normalizer';
 import { enrichNodesWithSemantics } from '../core/dom/semantic-classifier';
+import { executeExportPipeline, type ExportPipelineStage } from '../core/export/export-pipeline';
 
 export const elementPicker = new ElementPicker();
+const activeCaptureAbortControllers = new Map<string, AbortController>();
 import type {
   PortHeartbeatPing,
   PortHeartbeatPong,
@@ -236,6 +238,119 @@ browser.runtime.onMessage.addListener((message: unknown) => {
       const result = walker.walk();
       return Promise.resolve(result);
     }
+
+    if (msg.type === 'EXECUTE_CAPTURE') {
+      const payload = (msg as any).payload || {};
+      const jobId = payload.jobId as string;
+      const mode = (payload.mode || 'full-page') as 'viewport' | 'selected-element' | 'full-page';
+      const options = payload.options || {};
+
+      if (!jobId) {
+        return Promise.resolve({ success: false, error: 'Missing jobId' });
+      }
+
+      const abortController = new AbortController();
+      activeCaptureAbortControllers.set(jobId, abortController);
+
+      const progressMap: Record<ExportPipelineStage, number> = {
+        idle: 5,
+        capturing_dom: 20,
+        validating_semantics: 40,
+        fetching_assets: 60,
+        analyzing_layout: 75,
+        building_scene: 90,
+        ready_to_copy: 100,
+        failed: 100,
+        cancelled: 100
+      };
+
+      // Notify initial start
+      void browser.runtime.sendMessage({
+        type: 'UPDATE_JOB_PROGRESS',
+        payload: {
+          jobId,
+          stage: 'capturing_dom',
+          currentStep: 'Extracting rendered DOM and visual geometry...',
+          progressPercent: 15
+        }
+      });
+
+      // Run pipeline asynchronously in page DOM context
+      executeExportPipeline({
+        jobId,
+        mode,
+        options,
+        signal: abortController.signal,
+        onStageChange: (stage, message) => {
+          void browser.runtime.sendMessage({
+            type: 'UPDATE_JOB_PROGRESS',
+            payload: {
+              jobId,
+              stage,
+              currentStep: message,
+              progressPercent: progressMap[stage] ?? 50
+            }
+          });
+        }
+      }).then((result) => {
+        activeCaptureAbortControllers.delete(jobId);
+        if (result.stage === 'ready_to_copy' && result.scene) {
+          void browser.runtime.sendMessage({
+            type: 'FINISH_CAPTURE',
+            payload: {
+              jobId,
+              scene: result.scene,
+              diagnostics: result.diagnostics
+            }
+          });
+        } else if (result.stage === 'cancelled') {
+          void browser.runtime.sendMessage({
+            type: 'UPDATE_JOB_PROGRESS',
+            payload: {
+              jobId,
+              stage: 'cancelled',
+              currentStep: result.error || 'Capture was cancelled',
+              progressPercent: 100
+            }
+          });
+        } else {
+          void browser.runtime.sendMessage({
+            type: 'UPDATE_JOB_PROGRESS',
+            payload: {
+              jobId,
+              stage: 'failed',
+              currentStep: result.error || 'Capture failed',
+              progressPercent: 100
+            }
+          });
+        }
+      }).catch((err: unknown) => {
+        activeCaptureAbortControllers.delete(jobId);
+        const errMsg = err instanceof Error ? err.message : String(err);
+        void browser.runtime.sendMessage({
+          type: 'UPDATE_JOB_PROGRESS',
+          payload: {
+            jobId,
+            stage: 'failed',
+            currentStep: `Capture failed: ${errMsg}`,
+            progressPercent: 100,
+            error: errMsg
+          }
+        });
+      });
+
+      return Promise.resolve({ success: true, jobId });
+    }
+
+    if (msg.type === 'CANCEL_CAPTURE') {
+      const payload = (msg as any).payload || {};
+      const jobId = payload.jobId as string;
+      if (jobId && activeCaptureAbortControllers.has(jobId)) {
+        activeCaptureAbortControllers.get(jobId)!.abort();
+        activeCaptureAbortControllers.delete(jobId);
+      }
+      return Promise.resolve({ success: true });
+    }
   }
   return undefined;
 });
@@ -243,6 +358,10 @@ browser.runtime.onMessage.addListener((message: unknown) => {
 // Clean teardown upon navigation / page unload
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
+    for (const controller of activeCaptureAbortControllers.values()) {
+      controller.abort();
+    }
+    activeCaptureAbortControllers.clear();
     elementPicker.stop();
     teardownMinibar();
     streamClient.disconnect();
