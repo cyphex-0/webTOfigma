@@ -85,10 +85,10 @@ describe('Public-Release Security, Privacy, and Legal Audit (Phase 24)', () => {
           // No eval statement
           expect(code).not.toMatch(/\beval\s*\(/);
           // No remote tracking endpoints
-          expect(code).not.toContain('google-analytics.com');
-          expect(code).not.toContain('segment.io');
-          expect(code).not.toContain('mixpanel.com');
-          expect(code).not.toContain('sentry.io');
+          expect(code).not.toContain(['google', 'analytics.com'].join('-'));
+          expect(code).not.toContain(['segment', 'io'].join('.'));
+          expect(code).not.toContain(['mixpanel', 'com'].join('.'));
+          expect(code).not.toContain(['sentry', 'io'].join('.'));
         }
       }
     }

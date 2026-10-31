@@ -1,0 +1,44 @@
+{
+  "version": "0.1.0",
+  "sourceCommit": "0a96c8602413e7c0433ff8265c339737570108e4",
+  "buildTimestamp": "2026-10-31T15:47:46.017Z",
+  "environment": {
+    "nodeVersion": "v24.21.0",
+    "npmVersion": "11.19.0",
+    "lockfileSha256": "4f6a7e78d79c239ed99f9a598aa587c9e47c9ba7c930958c196c3cab5ca8e259",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "minimumBrowserVersions": {
+    "chrome": "116+",
+    "edge": "116+",
+    "brave": "1.58+ (Chromium 116+)",
+    "firefox": "120+"
+  },
+  "supportedOperatingSystems": [
+    "Windows 10 / 11 (x64, arm64)",
+    "macOS 12+ (Intel, Apple Silicon)",
+    "Linux (x64, arm64)"
+  ],
+  "artifacts": {
+    "chromium": {
+      "file": "web-to-figma-exporter-chromium-v0.1.0.zip",
+      "sha256": "71a9ef6fde0a41c1c0380bac8cd20ff7409366391c4d82f374ed0774a1859169",
+      "sizeBytes": 311430,
+      "targetEngine": "Chromium MV3 Service Worker"
+    },
+    "firefox": {
+      "file": "web-to-figma-exporter-firefox-v0.1.0.zip",
+      "sha256": "db73bba4639dbd630ab4bea8c5ad0253263b1c7d09502a80a24120249d625646",
+      "sizeBytes": 307494,
+      "targetEngine": "Gecko MV3 Event Page"
+    }
+  },
+  "documentation": {
+    "sbom": "docs/release/dependency-inventory.md",
+    "releaseCandidateReport": "docs/release/release-candidate-report.md",
+    "compatibilityMatrix": "docs/release/four-browser-compatibility-matrix.md",
+    "threatModel": "docs/security/threat-model.md",
+    "privacyPolicy": "docs/privacy/privacy-policy.md"
+  }
+}
